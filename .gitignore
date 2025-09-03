@@ -1,0 +1,6 @@
+lib/
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+MPU6050.py
+lib/
