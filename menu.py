@@ -86,16 +86,17 @@ def _render_menu(oled, items, idx, debug=False, upside_down=False):
 def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=True):
     print("Now in menu mode")
     has_custom = _custom_core_available()
-    # Force stored core_type to Default if custom missing
+    # If custom not present, force core_type to Default for display only (do not flip stored if already Default/Custom)
     if not has_custom and settings_store.get_core_type() != 'Default':
-        settings_store.toggle_core_type()  # toggle back if previously Custom
-    core_label = settings_store.get_core_type()
+        # Do not toggle automatically; just show Default label (user cannot toggle)
+        pass
+    core_label = settings_store.get_core_type() if has_custom else 'Default'
     # Build menu items dynamically based on context
     base_items = [
         {"name": f"Mute", "key": "mute", "type": "toggle"},
+        {"name": f"Core: {core_label}", "key": "core", "type": "action"},
+        {"name": "Reset Settings", "key": "reset", "type": "action"},
     ]
-    if has_custom:
-        base_items.append({"name": f"Core: {core_label}", "key": "core", "type": "action"})
     if called_from_main:
         base_items.append({"name": "Go Back", "key": "exit", "type": "action"})
     else:
@@ -105,13 +106,15 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
         ])
     menu_items = base_items
     selected = 0
+    # Highlight Core by default (index 1) if present
+    if len(menu_items) > 1:
+        selected = 1
     while True:
-        # Refresh core label each render if custom present
-        if has_custom:
-            current_core = settings_store.get_core_type()
-            for it in menu_items:
-                if it.get('key') == 'core':
-                    it['name'] = f"Core: {current_core}"
+        # Refresh core label each render
+        display_core = settings_store.get_core_type() if has_custom else 'Default'
+        for it in menu_items:
+            if it.get('key') == 'core':
+                it['name'] = f"Core: {display_core}"
         _render_menu(oled, menu_items, selected, debug_mode, upside_down)
         # Navigation: MENU button cycles down, OK selects
         if code_debug_pin.value() == 0:  # Down
@@ -126,8 +129,11 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
                 item = menu_items[selected]
                 if item['key'] == 'mute':
                     settings_store.toggle_mute()
-                elif item['key'] == 'core' and has_custom:
-                    settings_store.toggle_core_type()
+                elif item['key'] == 'core':
+                    if has_custom:  # only toggle if custom exists
+                        settings_store.toggle_core_type()
+                elif item['key'] == 'reset':
+                    settings_store.reset_settings()
                 elif item['key'] in ('exit','back'):
                     while code_ok_pin.value()==0:
                         sleep_ms(15)

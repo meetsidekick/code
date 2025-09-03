@@ -2,11 +2,12 @@
 # Stores settings in a small JSON file on the device filesystem.
 
 import ujson as json
+import os  # added for file deletion
 
 _SETTINGS_FILE = "settings.json"
 _default_settings = {
     "mute": False,
-    "core_type": "Default",  # or "Custom"
+    "core_type": "Custom",  # Default highlight Custom; fallback to Default if not present
 }
 
 _settings = {}
@@ -51,6 +52,18 @@ def toggle_core_type():
     _save()
     return _settings["core_type"]
 
+
+def reset_settings():
+    """Delete settings file and restore defaults in memory and on disk."""
+    global _settings
+    try:
+        if _SETTINGS_FILE in os.listdir():
+            os.remove(_SETTINGS_FILE)
+    except Exception:
+        pass
+    _settings = _default_settings.copy()
+    _save()
+    return _settings.copy()
 
 # Initialize on import
 _load()
