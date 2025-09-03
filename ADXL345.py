@@ -68,9 +68,9 @@ class ADXL345:
                 raise OSError("ADXL345 not available")
         
         data = self.i2c.readfrom_mem(self.ADDRESS, self.REG_DATAX0, 6)
-        x = int.from_bytes(data[0:2], 'little', signed=True)
-        y = int.from_bytes(data[2:4], 'little', signed=True)
-        z = int.from_bytes(data[4:6], 'little', signed=True)
+        x = int.from_bytes(data[0:2], 'little', True)
+        y = int.from_bytes(data[2:4], 'little', True)
+        z = int.from_bytes(data[4:6], 'little', True)
         return (x, y, z)
 
     def read_accel_abs(self):

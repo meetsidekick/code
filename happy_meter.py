@@ -8,23 +8,7 @@ sad_subtract = 10
 current_value -> Current Happiness Meter Value
 ext_multiplier -> In case we want to change the multiplier externally
 """
-def meter(*args):
-    # Support both old and new calling styles
-    # meter(state, current_value, ext_multiplier) or meter(state="add", current_value=35, ext_multiplier=1)
-    if len(args) >= 1:
-        state = args[0]
-    else:
-        state = "add"
-    
-    if len(args) >= 2:
-        current_value = args[1]
-    else:
-        current_value = 35
-        
-    if len(args) >= 3:
-        ext_multiplier = args[2]
-    else:
-        ext_multiplier = 1
+def meter(state="add", current_value=35, ext_multiplier=1):
     # Our Change, after multipliers and all
     delta = 0
     result = 0

@@ -19,8 +19,20 @@ from pin_values import touch_pin_value, code_debug_pin_value
 import ssd1306
 import oled_functions
 
+# === OLED HELPER FUNCTION ===
+def safe_oled_update(display_type, value=None):
+    """Safely update OLED - skip if OLED is not available"""
+    if oled is not None:
+        oled_functions.update_oled(oled, display_type, value, UPSIDE_DOWN, SET_DEBUG)
+    elif SET_DEBUG:
+        if value is not None:
+            print(f"🖥️ OLED: {display_type} = {value}")
+        else:
+            print(f"🖥️ OLED: {display_type}")
+
 # === OLED & I2C Initialization ===
-i2c_bus = I2C(0, scl=Pin(5), sda=Pin(4), freq=400_000)  # Faster I2C for ADXL345
+i2c_bus = I2C(0, scl=Pin(5), sda=Pin(4), freq=400_000)  # SCL=5, SDA=4
+sleep_ms(100)  # Wait for I2C bus to settle
 
 # Try to initialize OLED - enable debug mode if it fails
 oled = None
@@ -61,29 +73,17 @@ except Exception as e:
     SET_DEBUG = True  # Enable debug mode on failure
     print(f"⚠️ Touch sensor initialization failed: {e}")
     print("🔧 Debug mode enabled: Continuing without touch sensor...")
-    touch_sensor = None
 
 debug_button = Pin(code_debug_pin_value, Pin.IN, Pin.PULL_UP)
 
 # === DISPLAY SETTINGS ===
 UPSIDE_DOWN = True  # Set to True to flip the display 180 degrees
 
-# === OLED HELPER FUNCTION ===
-def safe_oled_update(display_type, value=None):
-    """Safely update OLED - skip if OLED is not available"""
-    if oled is not None:
-        oled_functions.update_oled(oled, display_type, value, UPSIDE_DOWN, SET_DEBUG)
-    elif SET_DEBUG:
-        if value is not None:
-            print(f"🖥️ OLED: {display_type} = {value}")
-        else:
-            print(f"🖥️ OLED: {display_type}")
-
 # === EMOTIONAL STATE COUNTERS ===
-happy_level = 35
-headpat_count = 0
-shake_count = 0
+happy_level = 50
 movement_count = 0
+shake_count = 0
+headpat_count = 0
 
 # === Constants ===
 HEADPAT_THRESHOLD = 4
