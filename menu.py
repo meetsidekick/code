@@ -6,7 +6,7 @@ import framebuf
 import ujson as json
 import os, sys
 
-PRESERVE_CUSTOM_CODE = {'custom_code_pomodoro.py'}  # Files never deleted by wipe
+PRESERVE_CUSTOM_CODE = {'custom_code_led.py'}  # Files never deleted by wipe
 
 # Helper to detect custom core availability
 def _custom_core_available():
@@ -31,13 +31,14 @@ def _list_custom_code():
 
 # Ensure example file exists (no longer inlined here; separate file)
 def _ensure_example():
-    # If user deleted preserved example, recreate minimal stub (points to docs comment)
-    example = 'custom_code_pomodoro.py'
+    example = 'custom_code_led.py'
     if example not in _list_custom_code():
         try:
             with open(example, 'w') as f:
-                f.write('# Restored Pomodoro stub. Full example was removed.\n'\
-                        'def run(env):\n    oled=env.get(\'oled\');\n    if oled: oled.fill(0); oled.text(\'Pomodoro stub\',0,0); oled.show();\n    from time import sleep_ms; sleep_ms(800)\n')
+                f.write('# Auto-restored LED example stub.\n'\
+                        'def run(env):\n    oled=env.get(\'oled\'); ok=env.get(\'ok_button\'); sleep_ms=env.get(\'sleep_ms\'); Pin=env.get(\'Pin\');\n'\
+                        '    try:\n        from pin_values import led_pin_value\n        led=Pin(led_pin_value,Pin.OUT)\n    except Exception:\n        led=None\n'\
+                        '    cnt=0\n    import time\n    while True:\n        if ok and ok.value()==0:\n            while ok.value()==0: sleep_ms(15)\n            cnt+=1\n            if led:\n                try: led.value(1)\n                except: pass\n            if oled:\n                oled.fill(0); oled.text(\'Blink Example\',0,0); oled.text(\'Blink #\'+str(cnt),0,16); oled.text(\'LED ON\',0,32); oled.text(\'Menu=Exit\',0,54); oled.show()\n            sleep_ms(250)\n            if led:\n                try: led.value(0)\n                except: pass\n        # Exit if menu button (passed separately in env) pressed\n        mb = env.get(\'menu_button\')\n        if mb and mb.value()==0:\n            while mb.value()==0: sleep_ms(15)\n            return\n        if oled and cnt==0:\n            oled.fill(0); oled.text(\'Blink Example\',0,0); oled.text(\'Press OK\',0,16); oled.text(\'to Blink\',0,26); oled.text(\'Menu=Exit\',0,54); oled.show()\n        sleep_ms(40)\n')
         except Exception:
             pass
 
@@ -90,9 +91,17 @@ def _text(oled, s, x, y, upside_down=False):
                 if 0 <= fx < 128 and 0 <= fy < 64:
                     oled.pixel(fx, fy, 1)
 
-code_debug_pin = Pin(code_debug_pin_value, Pin.IN, Pin.PULL_UP)
-code_ok_pin = Pin(code_ok_pin_value, Pin.IN, Pin.PULL_UP)
-led = Pin(led_pin_value, Pin.OUT)
+def _reinit_buttons():
+    """(Re)initialize button pins. Safe if hardware absent."""
+    global code_debug_pin, code_ok_pin
+    try:
+        code_debug_pin = Pin(code_debug_pin_value, Pin.IN, Pin.PULL_UP)
+        code_ok_pin = Pin(code_ok_pin_value, Pin.IN, Pin.PULL_UP)
+    except Exception:
+        pass
+
+# Initial creation
+_reinit_buttons()
 
 # (Remove fixed MENU_ITEMS; build dynamically in open_menu)
 MENU_FOOTER = "OP=Down,OK=Yes"
@@ -171,6 +180,7 @@ def _render_menu(oled, items, idx, debug=False, upside_down=False):
 
 
 def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=True, env=None):
+    _reinit_buttons()  # ensure fresh button objects each time menu opens
     print("Now in menu mode")
     has_custom = _custom_core_available()
     if not has_custom and settings_store.get_core_type() != 'Default':
@@ -238,6 +248,7 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
 
 # Updated execute submenu with Back & Home, up/down nav and upside_down passed in env
 def _execute_code_menu(oled, debug_mode, upside_down, env):
+    _reinit_buttons()
     _ensure_example()
     scripts = _list_custom_code()
     CONTROL = ['< Back', '< Home']
@@ -289,9 +300,11 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
                 sel = total_list[idx]
                 if sel == '< Back':
                     while code_ok_pin.value()==0: sleep_ms(15)
+                    _reinit_buttons()
                     return 'back'
                 if sel == '< Home':
                     while code_ok_pin.value()==0: sleep_ms(15)
+                    _reinit_buttons()
                     return 'home'
                 from time import sleep_ms as _slp
                 try:
@@ -300,15 +313,17 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
                         'mpu': env.get('mpu') if env else None,
                         'open_menu': (lambda : open_menu(oled, debug_mode, upside_down, True, env)),
                         'menu_button': code_debug_pin,
+                        'ok_button': code_ok_pin,
                         'settings': settings_store,
                         'sleep_ms': _slp,
                         'Pin': Pin,
                         'upside_down': upside_down,
                     }
                 except Exception:
-                    env_full = {'oled': oled, 'menu_button': code_debug_pin, 'upside_down': upside_down}
+                    env_full = {'oled': oled, 'menu_button': code_debug_pin, 'ok_button': code_ok_pin, 'upside_down': upside_down}
                 _run_script(sel, env_full)
                 while code_ok_pin.value()==0: sleep_ms(15)
+                _reinit_buttons()  # refresh buttons after user script returns
         # Exit combo (both buttons) remains for emergency escape
         if code_debug_pin.value()==0 and code_ok_pin.value()==0:
             hold = 0
