@@ -97,9 +97,9 @@ ROUGH_MOVEMENT = 80000
 # --- New adaptive noise / stillness parameters ---
 NOISE_ALPHA = 0.02              # EMA smoothing factor for noise floor
 BASELINE_NOISE_START = 1500.0    # Initial guess of sensor jitter
-ACTIVE_MARGIN = 800              # Force above baseline to count as "active" sample
-GENTLE_ACTIVE_MIN_SAMPLES = 4    # Minimum active samples in history window
-STILL_RANGE_THRESHOLD = 2500     # If (max-min) below this, treat as still
+ACTIVE_MARGIN = 500              # Force above baseline to count as "active" sample (reduced from 800)
+GENTLE_ACTIVE_MIN_SAMPLES = 2    # Minimum active samples in history window (was 4)
+STILL_RANGE_THRESHOLD = 1200     # If (max-min) below this AND low active samples, treat as still (was 2500)
 baseline_noise = BASELINE_NOISE_START
 
 # === STARTUP/INTRO ===
@@ -147,8 +147,8 @@ while True:
                 print(f"💥 Accelerometer error: {e}")
 
         # === Adaptive noise baseline update ===
-        # Only update baseline with very low movements (below gentle min * 1.2)
-        if movement_force < (GENTLE_MOVEMENT_MIN * 1.2):
+        # Only update baseline with very low movements close to current baseline
+        if movement_force < (baseline_noise + 600):  # narrower adaptive window
             baseline_noise += NOISE_ALPHA * (movement_force - baseline_noise)
 
         # Calculate the average movement force from the history
@@ -177,7 +177,7 @@ while True:
             continue
 
         # Movement logic based on refined criteria
-        is_still = range_force < STILL_RANGE_THRESHOLD or active_samples < GENTLE_ACTIVE_MIN_SAMPLES or (average_force <= baseline_noise + ACTIVE_MARGIN)
+        is_still = ((range_force < STILL_RANGE_THRESHOLD and active_samples < GENTLE_ACTIVE_MIN_SAMPLES) or (average_force <= baseline_noise + ACTIVE_MARGIN))
 
         if average_force <= GENTLE_MOVEMENT_MIN or is_still:
             # Reset counters if movement stops or treated as still
@@ -187,6 +187,8 @@ while True:
             # If movement is gentle and shows real variation, increment gentle counter
             gentle_movement_count += 1
             movement_count = 0 # Reset rough movement counter
+            if SET_DEBUG:
+                print(f"🌱 gentle_progress={gentle_movement_count}/{GENTLE_MOVEMENT_THRESHOLD}")
             if gentle_movement_count >= GENTLE_MOVEMENT_THRESHOLD:
                 print("😊 This is a nice stroll! (´▽｀)")
                 happy_level = get_happy("add", happy_level, 0.1) # Gradual increase
