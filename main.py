@@ -90,7 +90,7 @@ SHAKE_THRESHOLD = 7
 MOVEMENT_SENSITIVITY = 2
 GENTLE_MOVEMENT_THRESHOLD = 15 # How long gentle movement is needed for a reward
 # Adjusted thresholds for the new rolling average method
-GENTLE_MOVEMENT_MIN = 100 # Min threshold to be considered gentle movement (filters noise)
+GENTLE_MOVEMENT_MIN = 1000 # Min threshold to be considered gentle movement (filters noise)
 GENTLE_MOVEMENT_MAX = 35000 # Max threshold to be considered gentle movement
 ROUGH_MOVEMENT = 80000
 
