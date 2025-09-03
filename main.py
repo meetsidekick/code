@@ -4,7 +4,7 @@
 # Current Project: https://github.com/MakerSidekick/MakerSidekick-Bot/blob/main/main.py
 
 # === DEBUG SETTINGS ===
-SET_DEBUG = True  # Will be set to True automatically if hardware fails
+SET_DEBUG = False  # Will be set to True automatically if hardware fails
 
 from ADXL345 import ADXL345
 from machine import Pin, I2C
@@ -77,6 +77,7 @@ happy_level = 50
 movement_count = 0
 shake_count = 0
 headpat_count = 0
+gentle_movement_count = 0
 
 # === ROLLING AVERAGE FOR MOVEMENT DETECTION ===
 # Use a deque to store recent movement force values
@@ -87,8 +88,10 @@ movement_history = deque([0] * MOVEMENT_HISTORY_SIZE, MOVEMENT_HISTORY_SIZE)
 HEADPAT_THRESHOLD = 4
 SHAKE_THRESHOLD = 7
 MOVEMENT_SENSITIVITY = 2
+GENTLE_MOVEMENT_THRESHOLD = 15 # How long gentle movement is needed for a reward
 # Adjusted thresholds for the new rolling average method
-GENTLE_MOVEMENT = 50000
+GENTLE_MOVEMENT_MIN = 100 # Min threshold to be considered gentle movement (filters noise)
+GENTLE_MOVEMENT_MAX = 35000 # Max threshold to be considered gentle movement
 ROUGH_MOVEMENT = 80000
 
 # === STARTUP/INTRO ===
@@ -156,11 +159,22 @@ while True:
             continue
 
         # Movement logic based on the average force
-        if average_force <= GENTLE_MOVEMENT:
+        if average_force <= GENTLE_MOVEMENT_MIN:
+            # Reset counters if movement stops
             movement_count = 0
-
-        if average_force >= ROUGH_MOVEMENT:
+            gentle_movement_count = 0
+        elif GENTLE_MOVEMENT_MIN < average_force <= GENTLE_MOVEMENT_MAX:
+            # If movement is gentle, increment gentle counter
+            gentle_movement_count += 1
+            movement_count = 0 # Reset rough movement counter
+            if gentle_movement_count >= GENTLE_MOVEMENT_THRESHOLD:
+                print("😊 This is a nice stroll! (´▽｀)")
+                happy_level = get_happy("add", happy_level, 0.1) # Gradual increase
+                gentle_movement_count = 0 # Reset after reward
+        elif average_force >= ROUGH_MOVEMENT:
+            # If movement is rough, increment rough counter
             movement_count += 1
+            gentle_movement_count = 0 # Reset gentle counter
             if happy_level < 75:
                 angry_sound()
                 print("😠 Hey! What was that for! ヽ(｀Д´)ﾉ")
