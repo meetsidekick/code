@@ -4,7 +4,9 @@ from pin_values import code_debug_pin_value, buzzer_pin_value, led_pin_value, co
 import settings_store
 import framebuf
 import ujson as json
-import os
+import os, sys
+
+PRESERVE_CUSTOM_CODE = {'custom_code_pomodoro.py'}  # Files never deleted by wipe
 
 # Helper to detect custom core availability
 def _custom_core_available():
@@ -14,6 +16,61 @@ def _custom_core_available():
         return isinstance(data, dict) and ('faces' in data or 'sounds' in data)
     except Exception:
         return False
+
+# Scan for custom code scripts (pattern custom_code_*.py)
+def _list_custom_code():
+    files = []
+    try:
+        for fn in os.listdir():
+            if fn.startswith('custom_code_') and fn.endswith('.py'):
+                files.append(fn)
+    except Exception:
+        pass
+    files.sort()
+    return files
+
+# Ensure example file exists (no longer inlined here; separate file)
+def _ensure_example():
+    # If user deleted preserved example, recreate minimal stub (points to docs comment)
+    example = 'custom_code_pomodoro.py'
+    if example not in _list_custom_code():
+        try:
+            with open(example, 'w') as f:
+                f.write('# Restored Pomodoro stub. Full example was removed.\n'\
+                        'def run(env):\n    oled=env.get(\'oled\');\n    if oled: oled.fill(0); oled.text(\'Pomodoro stub\',0,0); oled.show();\n    from time import sleep_ms; sleep_ms(800)\n')
+        except Exception:
+            pass
+
+# Wipe custom code (except preserved examples)
+def _wipe_custom_code():
+    try:
+        for fn in _list_custom_code():
+            if fn in PRESERVE_CUSTOM_CODE:
+                continue
+            try:
+                os.remove(fn)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    _ensure_example()
+
+# Execute a selected script (reload each time)
+def _run_script(filename, env):
+    name = filename[:-3]
+    try:
+        if name in sys.modules:
+            sys.modules.pop(name)
+    except Exception:
+        pass
+    try:
+        mod = __import__(name)
+        if hasattr(mod, 'run'):
+            mod.run(env)
+        else:
+            print('No run(env) in', filename)
+    except Exception as e:
+        print('Error executing', filename, e)
 
 # Helper to render text respecting upside_down
 def _text(oled, s, x, y, upside_down=False):
@@ -38,32 +95,54 @@ code_ok_pin = Pin(code_ok_pin_value, Pin.IN, Pin.PULL_UP)
 led = Pin(led_pin_value, Pin.OUT)
 
 # (Remove fixed MENU_ITEMS; build dynamically in open_menu)
-MENU_FOOTER = "MENU=Down,OK=Yes"
+MENU_FOOTER = "OP=Down,OK=Yes"
 
 
 def _render_menu(oled, items, idx, debug=False, upside_down=False):
     if oled is None:
         print("--- MENU ---")
-        for i, item in enumerate(items):
-            prefix = ">" if i == idx else " "
+        window_size = 4
+        start = 0
+        if len(items) > window_size:
+            # Try to center selection
+            start = max(0, min(idx - window_size // 2, len(items) - window_size))
+        view = items[start:start+window_size]
+        for i, item in enumerate(view):
+            global_index = start + i
+            prefix = ">" if global_index == idx else " "
             if item["type"] == "toggle":
                 state = "ON" if settings_store.is_muted() else "OFF"
                 print(f"{prefix} {item['name']}: {state}")
             else:
                 print(f"{prefix} {item['name']}")
+        if start > 0:
+            print("(↑ more)")
+        if start + window_size < len(items):
+            print("(↓ more)")
         return
     try:
         oled.fill(0)
+        window_size = 4  # lines available between header and footer
+        if len(items) <= window_size:
+            start = 0
+        else:
+            start = max(0, min(idx - window_size // 2, len(items) - window_size))
+        footer = MENU_FOOTER
+        # Prepare slice
+        slice_items = items[start:start+window_size]
         lines = []
-        for i, item in enumerate(items):
-            marker = ">" if i == idx else " "
+        for i, item in enumerate(slice_items):
+            global_index = start + i
+            marker = ">" if global_index == idx else " "
             if item["type"] == "toggle":
                 state = "ON" if settings_store.is_muted() else "OFF"
                 line = f"{marker}{item['name']}:{state}"
             else:
                 line = f"{marker}{item['name']}"
             lines.append(line[:16])
-        footer = MENU_FOOTER
+        # Indicators for overflow
+        up_indicator = start > 0
+        down_indicator = (start + window_size) < len(items)
         if upside_down:
             _text(oled, footer, 0, 54, True)
             base_y = 44
@@ -71,11 +150,19 @@ def _render_menu(oled, items, idx, debug=False, upside_down=False):
                 _text(oled, line, 0, base_y, True)
                 base_y -= 10
             _text(oled, "Menu", 0, 0, True)
+            if up_indicator:
+                _text(oled, "^", 120, 0, True)
+            if down_indicator:
+                _text(oled, "v", 120, 54, True)
         else:
             _text(oled, "Menu", 0, 0, False)
             for i, line in enumerate(lines):
                 _text(oled, line, 0, 12 + i * 10, False)
             _text(oled, footer, 0, 54, False)
+            if up_indicator:
+                _text(oled, "^", 120, 0, False)
+            if down_indicator:
+                _text(oled, "v", 120, 54, False)
         if debug:
             _text(oled, "DBG", 100, 0, upside_down)
         oled.show()
@@ -83,18 +170,17 @@ def _render_menu(oled, items, idx, debug=False, upside_down=False):
         pass
 
 
-def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=True):
+def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=True, env=None):
     print("Now in menu mode")
     has_custom = _custom_core_available()
-    # If custom not present, force core_type to Default for display only (do not flip stored if already Default/Custom)
     if not has_custom and settings_store.get_core_type() != 'Default':
-        # Do not toggle automatically; just show Default label (user cannot toggle)
         pass
     core_label = settings_store.get_core_type() if has_custom else 'Default'
-    # Build menu items dynamically based on context
     base_items = [
         {"name": f"Mute", "key": "mute", "type": "toggle"},
         {"name": f"Core: {core_label}", "key": "core", "type": "action"},
+        {"name": "Execute Code", "key": "exec", "type": "action"},
+        {"name": "Wipe Custom Code", "key": "wipe_custom", "type": "action"},
         {"name": "Reset Settings", "key": "reset", "type": "action"},
     ]
     if called_from_main:
@@ -105,33 +191,41 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
             {"name": "Exit to Main", "key": "exit", "type": "action"},
         ])
     menu_items = base_items
-    selected = 0
-    # Highlight Core by default (index 1) if present
-    if len(menu_items) > 1:
-        selected = 1
+    selected = 1 if len(menu_items) > 1 else 0
     while True:
-        # Refresh core label each render
         display_core = settings_store.get_core_type() if has_custom else 'Default'
         for it in menu_items:
             if it.get('key') == 'core':
                 it['name'] = f"Core: {display_core}"
         _render_menu(oled, menu_items, selected, debug_mode, upside_down)
-        # Navigation: MENU button cycles down, OK selects
-        if code_debug_pin.value() == 0:  # Down
-            sleep_ms(20)
-            if code_debug_pin.value() == 0:
+        # DOWN / UP navigation: short press = down, long press (>=450ms) = up
+        if code_debug_pin.value() == 0:
+            t0 = ticks_ms()
+            long = False
+            while code_debug_pin.value() == 0:
+                if ticks_diff(ticks_ms(), t0) >= 450:
+                    long = True
+                sleep_ms(25)
+            if long:
+                selected = (selected - 1) % len(menu_items)
+            else:
                 selected = (selected + 1) % len(menu_items)
-                while code_debug_pin.value()==0:
-                    sleep_ms(15)
-        if code_ok_pin.value() == 0:  # Select / activate
+        # Select / activate
+        if code_ok_pin.value() == 0:
             sleep_ms(20)
             if code_ok_pin.value() == 0:
                 item = menu_items[selected]
                 if item['key'] == 'mute':
                     settings_store.toggle_mute()
                 elif item['key'] == 'core':
-                    if has_custom:  # only toggle if custom exists
+                    if has_custom:
                         settings_store.toggle_core_type()
+                elif item['key'] == 'exec':
+                    result = _execute_code_menu(oled, debug_mode, upside_down, env)
+                    if result == 'home':
+                        return 'exit'
+                elif item['key'] == 'wipe_custom':
+                    _wipe_custom_code()
                 elif item['key'] == 'reset':
                     settings_store.reset_settings()
                 elif item['key'] in ('exit','back'):
@@ -140,6 +234,89 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
                     return item['key']
                 while code_ok_pin.value()==0:
                     sleep_ms(15)
-        sleep_ms(30)
+        sleep_ms(35)
+
+# Updated execute submenu with Back & Home, up/down nav and upside_down passed in env
+def _execute_code_menu(oled, debug_mode, upside_down, env):
+    _ensure_example()
+    scripts = _list_custom_code()
+    CONTROL = ['< Back', '< Home']
+    idx = 0
+    while True:
+        total_list = CONTROL + scripts
+        window_size = 4
+        if len(total_list) <= window_size:
+            start = 0
+        else:
+            start = max(0, min(idx - window_size // 2, len(total_list) - window_size))
+        view = total_list[start:start+window_size]
+        try:
+            if oled:
+                oled.fill(0)
+                _text(oled, 'Execute', 0, 0, upside_down)
+                for i, entry in enumerate(view):
+                    global_index = start + i
+                    marker = '>' if global_index == idx else ' '
+                    label = entry if entry in CONTROL else entry.replace('custom_code_','')[:-3]
+                    _text(oled, (marker+label)[:16], 0, 12 + i*10, upside_down)
+                # Scroll indicators
+                if start > 0:
+                    _text(oled, '^', 120, 0, upside_down)
+                if (start + window_size) < len(total_list):
+                    _text(oled, 'v', 120, 54, upside_down)
+                _text(oled, 'Short=Dn Long=Up', 0, 54, upside_down)
+                oled.show()
+            else:
+                print('--- EXECUTE ---')
+                for i, entry in enumerate(view):
+                    global_index = start + i
+                    pref = '>' if global_index == idx else ' '
+                    print(pref, entry)
+                if start > 0: print('(↑ more)')
+                if (start + window_size) < len(total_list): print('(↓ more)')
+        except Exception:
+            pass
+        # Navigation
+        if code_debug_pin.value()==0:
+            t0 = ticks_ms(); long=False
+            while code_debug_pin.value()==0:
+                if ticks_diff(ticks_ms(), t0) >= 450: long=True
+                sleep_ms(25)
+            idx = (idx - 1) % len(total_list) if long else (idx + 1) % len(total_list)
+        if code_ok_pin.value()==0:
+            sleep_ms(20)
+            if code_ok_pin.value()==0:
+                sel = total_list[idx]
+                if sel == '< Back':
+                    while code_ok_pin.value()==0: sleep_ms(15)
+                    return 'back'
+                if sel == '< Home':
+                    while code_ok_pin.value()==0: sleep_ms(15)
+                    return 'home'
+                from time import sleep_ms as _slp
+                try:
+                    env_full = {
+                        'oled': env.get('oled') if env else oled,
+                        'mpu': env.get('mpu') if env else None,
+                        'open_menu': (lambda : open_menu(oled, debug_mode, upside_down, True, env)),
+                        'menu_button': code_debug_pin,
+                        'settings': settings_store,
+                        'sleep_ms': _slp,
+                        'Pin': Pin,
+                        'upside_down': upside_down,
+                    }
+                except Exception:
+                    env_full = {'oled': oled, 'menu_button': code_debug_pin, 'upside_down': upside_down}
+                _run_script(sel, env_full)
+                while code_ok_pin.value()==0: sleep_ms(15)
+        # Exit combo (both buttons) remains for emergency escape
+        if code_debug_pin.value()==0 and code_ok_pin.value()==0:
+            hold = 0
+            while code_debug_pin.value()==0 and code_ok_pin.value()==0 and hold < 600:
+                sleep_ms(30); hold += 30
+            if hold >= 600:
+                while code_debug_pin.value()==0 or code_ok_pin.value()==0: sleep_ms(15)
+                return 'back'
+        sleep_ms(35)
 
 

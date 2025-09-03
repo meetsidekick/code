@@ -121,6 +121,12 @@ except Exception as e:
 # === MAIN LOOP ===
 while True:
     try:
+        # Build env reference for dynamic code each loop (lightweight)
+        env = {
+            'oled': oled,
+            'mpu': mpu,
+            'open_menu': lambda : open_menu(oled, SET_DEBUG, UPSIDE_DOWN, True, env=None),
+        }
         # Read accelerometer data and calculate movement force
         try:
             current_accel = mpu.read_accel_data()
@@ -216,7 +222,7 @@ while True:
 
         # Debug menu access
         if debug_button.value() == 0:
-            open_menu(oled, SET_DEBUG, UPSIDE_DOWN)
+            open_menu(oled, SET_DEBUG, UPSIDE_DOWN, True, env)
             startup_sequence()
             safe_oled_update("happy", 85)
 
