@@ -39,6 +39,7 @@ FILE_PATTERNS: List[str] = [
     "ADXL345.py",
     "MPU6050.py",
     "oled_functions.py",
+    "settings_store.py",
     "lib/**/*.py",
     "*.bmp",
 ]

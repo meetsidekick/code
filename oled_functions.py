@@ -2,6 +2,24 @@ from time import ticks_ms, ticks_diff
 import framebuf
 import random
 
+# Small text helper that respects upside_down
+def _text(oled, text, x, y, upside_down=False):
+    if not upside_down:
+        oled.text(text, x, y)
+        return
+    w = len(text) * 8
+    h = 8
+    buf = bytearray(w * h // 8)
+    fb = framebuf.FrameBuffer(buf, w, h, framebuf.MONO_VLSB)
+    fb.text(text, 0, 0, 1)
+    for i in range(w):
+        for j in range(h):
+            if fb.pixel(i, j):
+                fx = 128 - (x + (i + 1))
+                fy = 64 - (y + (j + 1))
+                if 0 <= fx < 128 and 0 <= fy < 64:
+                    oled.pixel(fx, fy, 1)
+
 # --- Animation state ---
 _last_blink_time = 0
 _blinking = False
@@ -185,10 +203,10 @@ def update_oled(oled, mood="happy", value=50, upside_down=False, debug_mode=Fals
         debug_text = "DBG"
         if upside_down:
             # Bottom left corner when upside down
-            oled.text(debug_text, 2, 56, 1)
+            _text(oled, debug_text, 2, 56, True)
         else:
             # Top right corner when normal
-            oled.text(debug_text, 128 - len(debug_text) * 8, 0, 1)
+            _text(oled, debug_text, 128 - len(debug_text) * 8, 0, False)
     
     oled.show()
 

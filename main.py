@@ -194,7 +194,7 @@ while True:
 
         # Debug menu access
         if debug_button.value() == 0:
-            open_menu()
+            open_menu(oled, SET_DEBUG, UPSIDE_DOWN)
             startup_sequence()
             safe_oled_update("happy", 85)
 

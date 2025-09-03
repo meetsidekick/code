@@ -3,6 +3,7 @@ import time
 import random
 
 from pin_values import buzzer_pin_value, led_pin_value
+import settings_store
 
 # Initialize PWM for the buzzer and digital output for the LED
 buzzer = PWM(Pin(buzzer_pin_value))
@@ -16,7 +17,9 @@ def startup_shush():
     buzzer.duty_u16(0)
 
 def play_tone(freq, duration):
-    """Play a tone at the given frequency (Hz) and duration (ms)."""
+    if settings_store.is_muted():
+        time.sleep_ms(duration)
+        return
     led.value(1)
     buzzer.freq(freq)
     buzzer.duty_u16(32768)  # 50% duty cycle
