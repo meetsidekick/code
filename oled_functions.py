@@ -137,7 +137,7 @@ def get_face_and_x(mood, now, anim_state):
     x = _centered_x(face)
     return face, x
 
-def update_oled(oled, mood="happy", value=50, upside_down=False):
+def update_oled(oled, mood="happy", value=50, upside_down=False, debug_mode=False):
     global _last_blink_time, _blinking, _next_blink_interval, _shake_start, _headpat_start
     now = ticks_ms()
     anim_state = {}
@@ -179,6 +179,17 @@ def update_oled(oled, mood="happy", value=50, upside_down=False):
 
     oled.fill(0)
     _draw_ascii(oled, face, x, 20, 2, upside_down)
+    
+    # Draw debug indicator in corner if debug mode is active
+    if debug_mode:
+        debug_text = "DBG"
+        if upside_down:
+            # Bottom left corner when upside down
+            oled.text(debug_text, 2, 56, 1)
+        else:
+            # Top right corner when normal
+            oled.text(debug_text, 128 - len(debug_text) * 8, 0, 1)
+    
     oled.show()
 
 def demo_emotions(oled):

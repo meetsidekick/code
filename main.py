@@ -34,38 +34,24 @@ except OSError as e:
     oled = None
 
 # === DEVICES/SENSORS ===
-# Try to initialize ADXL345 with error handling
-mpu = None
-
-# Create a safe dummy accelerometer class
-class DummyAccel:
-    def read_accel_data(self):
-        return (0, 0, 1000)
-    def read_accel_abs(self):  # No parameters to match real ADXL345
-        return 1000.0
-    def is_shaking(self):  # No parameters to match real ADXL345
-        return False
-
+# Initialize ADXL345 with error handling built-in
 try:
-    # Try new version with debug_mode parameter (positional argument)
     mpu = ADXL345(i2c_bus, SET_DEBUG)
     print("✅ ADXL345 initialized successfully")
-except TypeError:
-    # Fallback to old version without debug_mode
-    print("⚠️ Using old ADXL345 version without debug support")
-    try:
-        mpu = ADXL345(i2c_bus)
-        print("✅ ADXL345 initialized successfully (old version)")
-    except OSError as e:
-        SET_DEBUG = True  # Enable debug mode on failure
-        print(f"⚠️ ADXL345 initialization failed: {e}")
-        print("🔧 Debug mode enabled: Creating dummy accelerometer...")
-        mpu = DummyAccel()
-except OSError as e:
+except Exception as e:
     SET_DEBUG = True  # Enable debug mode on failure
     print(f"⚠️ ADXL345 initialization failed: {e}")
-    print("🔧 Debug mode enabled: Creating dummy accelerometer...")
-    mpu = DummyAccel()
+    print("🔧 Debug mode enabled: Creating basic dummy accelerometer...")
+    
+    # Simple fallback dummy class
+    class BasicDummy:
+        def read_accel_data(self):
+            return (0, 0, 1000)
+        def read_accel_abs(self):
+            return 1000.0
+        def is_shaking(self):
+            return False
+    mpu = BasicDummy()
 
 touch_sensor = None
 try:
@@ -86,7 +72,7 @@ UPSIDE_DOWN = True  # Set to True to flip the display 180 degrees
 def safe_oled_update(display_type, value=None):
     """Safely update OLED - skip if OLED is not available"""
     if oled is not None:
-        oled_functions.update_oled(oled, display_type, value, UPSIDE_DOWN)
+        oled_functions.update_oled(oled, display_type, value, UPSIDE_DOWN, SET_DEBUG)
     elif SET_DEBUG:
         if value is not None:
             print(f"🖥️ OLED: {display_type} = {value}")
@@ -116,35 +102,15 @@ print("🎮 Robot Pet Ready! (っ´ω`)ﾉ")
 # === MAIN LOOP ===
 while True:
     try:
-        # Read all sensors - use real ADXL345 data when available
-        acceleration = (0, 0, 1000)  # Default safe value
-        movement_force = 10  # Default safe value
-        
-        # Try to get real accelerometer data
+        # Read accelerometer data (ADXL345 handles all error cases internally)
         try:
-            if hasattr(mpu, 'read_accel_data'):
-                acceleration = mpu.read_accel_data()
+            acceleration = mpu.read_accel_data()
+            movement_force = mpu.read_accel_abs() / 100  # Scale down
+            
+            # Show live IMU data in debug mode
+            if SET_DEBUG:
+                print(f"📊 IMU: accel={acceleration}, force={movement_force:.1f}")
                 
-                # Calculate movement force from real data
-                try:
-                    if hasattr(mpu, 'read_accel_abs'):
-                        # Try calling without parameters first (safer)
-                        movement_force = mpu.read_accel_abs() / 100  # Scale down
-                    else:
-                        # Calculate manually from acceleration
-                        x, y, z = acceleration
-                        movement_force = (x**2 + y**2 + z**2) ** 0.5 / 100
-                except Exception as method_error:
-                    if SET_DEBUG:
-                        print(f"❌ Method call error: {method_error}")
-                    # Fallback calculation
-                    x, y, z = acceleration
-                    movement_force = (abs(x) + abs(y) + abs(z - 1000)) / 100
-                
-                # Show live IMU data in debug mode
-                if SET_DEBUG:
-                    print(f"� IMU: accel={acceleration}, force={movement_force:.1f}")
-                    
         except Exception as e:
             if SET_DEBUG:
                 print(f"❌ Accelerometer error: {type(e).__name__}: {e}")

@@ -9,6 +9,7 @@ version = "0.1.0"
 dev = "python upload-to-esp32.py dev"
 upload = "python upload-to-esp32.py upload"
 list = "python upload-to-esp32.py list"
+fulldev = "python upload-to-esp32.py upload && python upload-to-esp32.py dev"
 
 [activation]
 scripts = ["startup_scripts/linux_setup.sh"]
