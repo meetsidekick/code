@@ -94,6 +94,14 @@ GENTLE_MOVEMENT_MIN = 1000 # Min threshold to be considered gentle movement (fil
 GENTLE_MOVEMENT_MAX = 35000 # Max threshold to be considered gentle movement
 ROUGH_MOVEMENT = 80000
 
+# --- New adaptive noise / stillness parameters ---
+NOISE_ALPHA = 0.02              # EMA smoothing factor for noise floor
+BASELINE_NOISE_START = 1500.0    # Initial guess of sensor jitter
+ACTIVE_MARGIN = 800              # Force above baseline to count as "active" sample
+GENTLE_ACTIVE_MIN_SAMPLES = 4    # Minimum active samples in history window
+STILL_RANGE_THRESHOLD = 2500     # If (max-min) below this, treat as still
+baseline_noise = BASELINE_NOISE_START
+
 # === STARTUP/INTRO ===
 print("🤖 Robot Pet Starting Up! (˶ᵔ ᵕ ᵔ˶)")
 startup_shush()
@@ -137,9 +145,19 @@ while True:
             movement_force = 0
             if SET_DEBUG:
                 print(f"💥 Accelerometer error: {e}")
-        
+
+        # === Adaptive noise baseline update ===
+        # Only update baseline with very low movements (below gentle min * 1.2)
+        if movement_force < (GENTLE_MOVEMENT_MIN * 1.2):
+            baseline_noise += NOISE_ALPHA * (movement_force - baseline_noise)
+
         # Calculate the average movement force from the history
         average_force = sum(movement_history) / MOVEMENT_HISTORY_SIZE
+        range_force = max(movement_history) - min(movement_history)
+        active_samples = sum(1 for f in movement_history if f > (baseline_noise + ACTIVE_MARGIN))
+
+        if SET_DEBUG:
+            print(f"🔎 avg={average_force:.0f} base={baseline_noise:.0f} rng={range_force:.0f} act={active_samples}")
 
         # Shake reactions
         if movement_count >= MOVEMENT_SENSITIVITY:
@@ -158,13 +176,15 @@ while True:
                 safe_oled_update("happy", 10)
             continue
 
-        # Movement logic based on the average force
-        if average_force <= GENTLE_MOVEMENT_MIN:
-            # Reset counters if movement stops
+        # Movement logic based on refined criteria
+        is_still = range_force < STILL_RANGE_THRESHOLD or active_samples < GENTLE_ACTIVE_MIN_SAMPLES or (average_force <= baseline_noise + ACTIVE_MARGIN)
+
+        if average_force <= GENTLE_MOVEMENT_MIN or is_still:
+            # Reset counters if movement stops or treated as still
             movement_count = 0
             gentle_movement_count = 0
         elif GENTLE_MOVEMENT_MIN < average_force <= GENTLE_MOVEMENT_MAX:
-            # If movement is gentle, increment gentle counter
+            # If movement is gentle and shows real variation, increment gentle counter
             gentle_movement_count += 1
             movement_count = 0 # Reset rough movement counter
             if gentle_movement_count >= GENTLE_MOVEMENT_THRESHOLD:
