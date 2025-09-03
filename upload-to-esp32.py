@@ -15,10 +15,8 @@ mp-helper dev
     Run the `main.py` that is in the current directory on a
     chosen device (interactive dropdown).
 
-Device shortcuts
-----------------
-a<n> → /dev/ttyACMn (Linux/macOS) u<n> → /dev/ttyUSBn (Linux/macOS)
-c<n> → COM<n> (Windows)
+mp-helper fulldev
+    Upload all configured files then run main.py (single device selection).
 """
 
 import argparse, glob, os, platform, re, subprocess, sys, textwrap
@@ -85,21 +83,100 @@ def _resolve_shortcut(arg: str) -> str:
     return arg
 
 
+def _preferred_device_index(devices: List[Tuple[str, str]]) -> Optional[int]:
+    """Return index of preferred device or None if no clear preference.
+
+    Preference order (first match wins by pattern order, then lowest numeric suffix):
+    1. Strong device name patterns (per-OS) like ttyACM*, ttyUSB*, usbmodem*, usbserial*, SLAB_USBtoUART, wchusbserial.
+    2. If none match by name, fall back to description keywords (ESP32, Pico, CP210, CH340, WCH, Silicon Labs).
+    If still nothing, return None (no default selection).
+    """
+    if not devices:
+        return None
+    osname = platform.system()
+    # Device name regexes (platform-specific plus common USB UART drivers)
+    if osname == "Linux":
+        dev_patterns = [
+            r"/dev/ttyACM(\d+)$", r"/dev/ttyUSB(\d+)$", r"/dev/ttyCH341(\d+)$",
+            r"/dev/ttyWCH(\d+)$", r"/dev/ttySLAB(\d+)$"
+        ]
+    elif osname == "Darwin":
+        dev_patterns = [
+            r"/dev/tty\.usbmodem(\d+)$", r"/dev/cu\.usbmodem(\d+)$",
+            r"/dev/tty\.usbserial(\d+)$", r"/dev/cu\.usbserial(\d+)$",
+            r"/dev/tty\.wchusbserial(\d+)$", r"/dev/cu\.wchusbserial(\d+)$",
+            r"/dev/tty\.SLAB_USBtoUART(\d+)$", r"/dev/cu\.SLAB_USBtoUART(\d+)$"
+        ]
+    else:  # Windows
+        dev_patterns = [r"COM(\d+)$"]
+
+    desc_patterns = [
+        r"ESP32", r"Pico", r"RP2040", r"CP210", r"CH340", r"WCH", r"Silicon Labs"
+    ]
+
+    best: Optional[Tuple[int, int, int]] = None  # (tier, pattern_order, numeric/id)
+    best_idx: Optional[int] = None
+
+    for idx, (dev, desc) in enumerate(devices):
+        # Tier 0: device name patterns
+        matched = False
+        for order, pat in enumerate(dev_patterns):
+            m = re.search(pat, dev)
+            if m:
+                try:
+                    num = int(m.group(1))
+                except Exception:
+                    num = 0
+                score = (0, order, num)
+                if best is None or score < best:
+                    best = score
+                    best_idx = idx
+                matched = True
+                break
+        if matched:
+            continue
+        # Tier 1: description patterns (no numeric extraction – use idx ordering)
+        for order, pat in enumerate(desc_patterns):
+            if re.search(pat, desc, re.IGNORECASE):
+                score = (1, order, idx)
+                if best is None or score < best:
+                    best = score
+                    best_idx = idx
+                break
+
+    return best_idx
+
+
 # === Helpers =================================================================
 def _pick_device() -> str:
-    """
-    Print an interactive numeric dropdown of detected devices and return the
-    chosen port/path.
+    """Interactive selection with optional heuristic default.
+
+    If a preferred device is found, ENTER selects it. Otherwise user must
+    explicitly choose (no default).
     """
     devices = _iter_pyserial_ports()
     if not devices:
         sys.exit("No serial devices found.")
-    print("Select device:")
+    default_idx = _preferred_device_index(devices)
+    if default_idx is not None:
+        print("Select device (ENTER for starred default):")
+    else:
+        print("Select device (no default, enter number):")
     for i, (dev, desc) in enumerate(devices):
-        print(f"  [{i}] {dev:15} {desc}")
+        marker = "*" if default_idx is not None and i == default_idx else " "
+        print(f"  [{i}] {marker} {dev:25} {desc}")
     while True:
+        raw = input(
+            (f"Enter number (default {default_idx}): " if default_idx is not None else "Enter number: ")
+        ).strip()
+        if raw == "":
+            if default_idx is not None:
+                return devices[default_idx][0]
+            else:
+                print("No default available – please enter a number.")
+                continue
         try:
-            choice = int(input("Enter number: "))
+            choice = int(raw)
             return devices[choice][0]
         except (ValueError, IndexError):
             print("Invalid selection, try again.")
@@ -118,6 +195,33 @@ def _run_mpremote(*mpremote_args: str) -> None:
         sys.exit(e.returncode)
 
 
+# Helper routines so fulldev can reuse logic
+def _gather_files() -> List[Path]:
+    files: List[Path] = []
+    for pattern in FILE_PATTERNS:
+        files.extend(Path().glob(pattern))
+    return files
+
+
+def _upload_files(port: str) -> None:
+    files = _gather_files()
+    if not files:
+        sys.exit("No files matched FILE_PATTERNS.")
+    for f in files:
+        print(f"Uploading {f} → {port} …")
+        _run_mpremote("connect", port, "fs", "cp", str(f), ":")
+    print("Upload complete.")
+
+
+def _run_main(port: str) -> None:
+    main_local = Path("main.py")
+    if not main_local.exists():
+        sys.exit("main.py not found in current directory.")
+    print(f"Running main.py on {port} …")
+    _run_mpremote("connect", port, "fs", "cp", "main.py", ":")
+    _run_mpremote("connect", port, "exec", "import main")
+
+
 # === Sub-commands ============================================================
 def cmd_list(_: argparse.Namespace) -> None:
     """
@@ -132,15 +236,7 @@ def cmd_upload(_: argparse.Namespace) -> None:
     mp-helper upload
     """
     port = _pick_device()
-    files: List[Path] = []
-    for pattern in FILE_PATTERNS:
-        files.extend(Path().glob(pattern))
-    if not files:
-        sys.exit("No files matched FILE_PATTERNS.")
-    for f in files:
-        print(f"Uploading {f} → {port} …")
-        _run_mpremote("connect", port, "fs", "cp", str(f), ":")
-    print("Done.")
+    _upload_files(port)
 
 
 def cmd_dev(_: argparse.Namespace) -> None:
@@ -148,12 +244,16 @@ def cmd_dev(_: argparse.Namespace) -> None:
     mp-helper dev
     """
     port = _pick_device()
-    main_local = Path("main.py")
-    if not main_local.exists():
-        sys.exit("main.py not found in current directory.")
-    print(f"Uploading main.py → {port} and running …")
-    _run_mpremote("connect", port, "fs", "cp", "main.py", ":")
-    _run_mpremote("connect", port, "exec", "import main")
+    _run_main(port)
+
+
+def cmd_fulldev(_: argparse.Namespace) -> None:
+    """
+    mp-helper fulldev
+    """
+    port = _pick_device()
+    _upload_files(port)
+    _run_main(port)
 
 
 # === CLI entrypoint ==========================================================
@@ -167,6 +267,7 @@ def main() -> None:
     sub.add_parser("list",  help="List attached devices").set_defaults(func=cmd_list)
     sub.add_parser("upload", help="Upload files defined in FILE_PATTERNS").set_defaults(func=cmd_upload)
     sub.add_parser("dev",   help="Run main.py on device").set_defaults(func=cmd_dev)
+    sub.add_parser("fulldev", help="Upload then run main.py").set_defaults(func=cmd_fulldev)
 
     args = parser.parse_args()
     args.func(args)
