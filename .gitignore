@@ -4,3 +4,4 @@ lib/
 !.pixi/config.toml
 MPU6050.py
 lib/
+custom_core.json

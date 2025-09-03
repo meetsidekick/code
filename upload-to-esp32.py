@@ -38,6 +38,8 @@ FILE_PATTERNS: List[str] = [
     "MPU6050.py",
     "oled_functions.py",
     "settings_store.py",
+    "default_core.json",
+    "custom_core.json",
     "lib/**/*.py",
     "*.bmp",
 ]

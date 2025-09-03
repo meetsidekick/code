@@ -6,6 +6,7 @@ import ujson as json
 _SETTINGS_FILE = "settings.json"
 _default_settings = {
     "mute": False,
+    "core_type": "Default",  # or "Custom"
 }
 
 _settings = {}
@@ -38,6 +39,17 @@ def toggle_mute():
     _settings["mute"] = not _settings.get("mute", False)
     _save()
     return _settings["mute"]
+
+
+def get_core_type():
+    return _settings.get("core_type", "Default")
+
+
+def toggle_core_type():
+    current = get_core_type()
+    _settings["core_type"] = "Custom" if current == "Default" else "Default"
+    _save()
+    return _settings["core_type"]
 
 
 # Initialize on import

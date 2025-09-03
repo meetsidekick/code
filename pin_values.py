@@ -6,3 +6,4 @@ buzzer_pin_value = 8 # GPIO 8, for Buzzer
 led_pin_value = 1 # GPIO 1, for builtin LED
 code_debug_pin_value = button_1 # for debug/modifier pin
 code_ok_pin_value = button_2 # for OK/Select pin
+# (Core selection handled in software via menu)

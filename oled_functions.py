@@ -1,6 +1,55 @@
 from time import ticks_ms, ticks_diff
-import framebuf
+import ujson as json
 import random
+import framebuf
+import settings_store
+
+# Default face sets (fallback if core json missing)
+DEFAULT_FACES = {
+    "happy": ['(^_^)', '(^_^)', "('-')", "('-')", "('-')", '(^_^)'],
+    "really_happy": ['(^o^)', '(^o^)', '(*^_^*)', '(*^_^*)', '(*^_^*)', '(^o^)'],
+    "curious": ['(o_o)', '(o_o)', '(-_-?)', '(-_-?)', '(-_-?)', '(._.)', '(._.)', '(._.)', '(-_-?)', '(-_-?)', '(-_-?)', '(o_o)'],
+    "concerned": ['(>_<)', '(>_<)', '(._.)', '(._.)', '(._.)', '(>_<)'],
+    "sad": ['(T_T)', '(T_T)', '(;_;)'],
+    "sleepy": ['(-_-)', '(-_-)', '(u_u)'],
+    "mischief": ['(¬‿¬)', '(¬‿¬)', '(^_~)'],
+    "surprised": ['(O_O)', '(O_O)', '(o_O)'],
+    "angry": ['(>_<)', '(>_<)', '(>: [)'],
+    "cool": ['(-_-)', '(-_-)', '(B-)'],
+    "love": ['(^3^)', '(^3^)', '(^.^)'],
+    "headpat": ['(^_^)', '(^_^)', '(^_^*)'],
+    "shake": ['(@_@)', '(@_@)', '(x_x)', '(x_x)', '(x_x)', '(O_o)'],
+}
+
+# Load core faces
+_core_cache = None
+
+def _load_core():
+    global _core_cache
+    if _core_cache is not None:
+        return _core_cache
+    for fname in ("custom_core.json", "default_core.json"):
+        try:
+            with open(fname, 'r') as f:
+                data = json.load(f)
+            faces = data.get('faces', {}) if isinstance(data, dict) else {}
+            merged = dict(DEFAULT_FACES)
+            for k, v in faces.items():
+                if isinstance(v, list) and v:
+                    merged[k] = v
+            data['faces'] = merged
+            if 'faces' in data:
+                _core_cache = data
+                return _core_cache
+        except Exception:
+            continue
+    # Fallback purely defaults
+    _core_cache = {"faces": dict(DEFAULT_FACES), "display": {"upside_down": False}}
+    return _core_cache
+
+_core = _load_core()
+DEFAULT_UPSIDE = _core.get('display', {}).get('upside_down', False)
+FACES = _core.get('faces', dict(DEFAULT_FACES))
 
 # Small text helper that respects upside_down
 def _text(oled, text, x, y, upside_down=False):
@@ -32,56 +81,6 @@ BLINK_DURATION = 140
 SHAKE_DURATION = 2000
 HEADPAT_DURATION = 1200
 SWAY_PERIOD = 1800
-
-# --- ASCII-only, single-line, horizontal faces ---
-FACES = {
-    "happy": [
-        '(^_^)', '(^_^)', "('-')",  # (^_^) → (^-^)
-        "('-')", "('-')", '(^_^)',  # (^-^) → (^_^)
-    ],
-    "really_happy": [
-        '(^o^)', '(^o^)', '(*^_^*)',  # (^o^) → (*^_^*)
-        '(*^_^*)', '(*^_^*)', '(^o^)',  # (*^_^*) → (^o^)
-    ],
-    "curious": [
-        '(o_o)', '(o_o)', '(-_-?)',  # (o_o) → (-_-?)
-        '(-_-?)', '(-_-?)', '(._.)', # (-_-?) → (._.)
-        '(._.)', '(._.)', '(-_-?)',  # (._.) → (-_-?)
-        '(-_-?)', '(-_-?)', '(o_o)', # (-_-?) → (o_o)
-    ],
-    "concerned": [
-        '(>_<)', '(>_<)', '(._.)',   # (>_<) → (._.)
-        '(._.)', '(._.)', '(>_<)',   # (._.) → (>_<)
-    ],
-    "sad": [
-        '(T_T)', '(T_T)', "(;_;)",   # (T_T) → (;_;)
-    ],
-    "sleepy": [
-        '(-_-)', '(-_-)', '(u_u)',   # (-_- ) → (u_u)
-    ],
-    "mischief": [
-        '(¬‿¬)', '(¬‿¬)', '(^_~)',  # (¬‿¬) → (^_~)
-    ],
-    "surprised": [
-        '(O_O)', '(O_O)', '(o_O)',   # (O_O) → (o_O)
-    ],
-    "angry": [
-        '(>_<)', '(>_<)', '(>:[)',   # (>_<) → (>: [)
-    ],
-    "cool": [
-        '(-_-)', '(-_-)', '(B-)',    # (-_- ) → (B-)
-    ],
-    "love": [
-        '(^3^)', '(^3^)', '(^.^)',   # (^3^) → (^.^)
-    ],
-    "headpat": [
-        '(^_^)', '(^_^)', '(^_^*)',  # (^_^ ) → (^_^*)
-    ],
-    "shake": [
-        '(@_@)', '(@_@)', '(x_x)',   # (@_@) → (x_x)
-        '(x_x)', '(x_x)', '(O_o)',   # (x_x) → (O_o)
-    ],
-}
 
 def _get_blink_interval():
     return random.randint(3000, 6000)
@@ -116,29 +115,39 @@ def _centered_x(face, scale=2):
     w = len(face) * 8 * scale
     return max((128 - w) // 2, 0)
 
+def _seq(name):
+    return FACES.get(name) or DEFAULT_FACES.get(name) or ['(._.)']
+
 def get_face_and_x(mood, now, anim_state):
     if mood == "happy":
-        idx = (now // 2000) % len(FACES["happy"])
-        face = FACES["happy"][idx]
+        seq = _seq('happy')
+        idx = (now // 2000) % len(seq)
+        face = seq[idx]
     elif mood == "really_happy":
-        idx = (now // 1700) % len(FACES["really_happy"])
-        face = FACES["really_happy"][idx]
+        seq = _seq('really_happy')
+        idx = (now // 1700) % len(seq)
+        face = seq[idx]
     elif mood == "shake":
+        seq = _seq('shake')
         phase_len = 210
-        frame = ((ticks_diff(now, anim_state["start"]) // phase_len) % 3)
-        face = FACES["shake"][frame]
+        frame = ((ticks_diff(now, anim_state.get("start", now)) // phase_len) % min(3, len(seq)))
+        face = seq[frame]
         offset_seq = [-11, 0, 10]
-        x = _centered_x(face) + offset_seq[frame]
+        x = _centered_x(face) + offset_seq[frame % len(offset_seq)]
         return face, x
     elif mood == "headpat":
-        elapsed = ticks_diff(now, anim_state["start"])
+        seq = _seq('headpat')
+        elapsed = ticks_diff(now, anim_state.get("start", now))
+        if len(seq) < 2:
+            face = seq[0]
+            x = _centered_x(face)
+            return face, x
         phase = (elapsed // 400) % 2
-        face = FACES["headpat"][phase]
+        face = seq[phase]
         x = _centered_x(face) + (2 if phase else -3)
-        if phase == 1:
-            face = face.replace(')', '*)', 1)
         return face, x
     else:
+        seq = _seq(mood if mood in FACES else 'curious')
         period = SWAY_PERIOD
         try:
             from math import sin, pi
@@ -146,9 +155,8 @@ def get_face_and_x(mood, now, anim_state):
             swing = int(7 * sin(2 * pi * t))
         except Exception:
             swing = 0
-        key = FACES.get(mood, FACES["curious"])
-        idx = (now // 2600) % len(key)
-        face = key[idx]
+        idx = (now // 2600) % len(seq)
+        face = seq[idx]
         x = _centered_x(face) + swing
         return face, x
 
@@ -197,17 +205,22 @@ def update_oled(oled, mood="happy", value=50, upside_down=False, debug_mode=Fals
 
     oled.fill(0)
     _draw_ascii(oled, face, x, 20, 2, upside_down)
-    
-    # Draw debug indicator in corner if debug mode is active
+
+    # --- Status overlay (DBG + mute) ---
+    parts = []
     if debug_mode:
-        debug_text = "DBG"
+        parts.append("DBG")
+    if settings_store.is_muted():
+        parts.append("M")  # Single letter muted indicator
+    if parts:
+        status = " ".join(parts)
         if upside_down:
-            # Bottom left corner when upside down
-            _text(oled, debug_text, 2, 56, True)
+            # Bottom-left when upside down
+            _text(oled, status, 0, 56, True)
         else:
-            # Top right corner when normal
-            _text(oled, debug_text, 128 - len(debug_text) * 8, 0, False)
-    
+            # Top-right when normal orientation
+            _text(oled, status, 128 - len(status)*8, 0, False)
+
     oled.show()
 
 def demo_emotions(oled):

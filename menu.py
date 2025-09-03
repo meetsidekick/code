@@ -3,6 +3,17 @@ from time import sleep_ms, ticks_ms, ticks_diff
 from pin_values import code_debug_pin_value, buzzer_pin_value, led_pin_value, code_ok_pin_value
 import settings_store
 import framebuf
+import ujson as json
+import os
+
+# Helper to detect custom core availability
+def _custom_core_available():
+    try:
+        with open('custom_core.json','r') as f:
+            data = json.load(f)
+        return isinstance(data, dict) and ('faces' in data or 'sounds' in data)
+    except Exception:
+        return False
 
 # Helper to render text respecting upside_down
 def _text(oled, s, x, y, upside_down=False):
@@ -74,43 +85,55 @@ def _render_menu(oled, items, idx, debug=False, upside_down=False):
 
 def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=True):
     print("Now in menu mode")
+    has_custom = _custom_core_available()
+    # Force stored core_type to Default if custom missing
+    if not has_custom and settings_store.get_core_type() != 'Default':
+        settings_store.toggle_core_type()  # toggle back if previously Custom
+    core_label = settings_store.get_core_type()
     # Build menu items dynamically based on context
+    base_items = [
+        {"name": f"Mute", "key": "mute", "type": "toggle"},
+    ]
+    if has_custom:
+        base_items.append({"name": f"Core: {core_label}", "key": "core", "type": "action"})
     if called_from_main:
-        menu_items = [
-            {"name": "Mute", "key": "mute", "type": "toggle"},
-            {"name": "Go Back", "key": "exit", "type": "action"},
-        ]
+        base_items.append({"name": "Go Back", "key": "exit", "type": "action"})
     else:
-        menu_items = [
-            {"name": "Mute", "key": "mute", "type": "toggle"},
+        base_items.extend([
             {"name": "Go Back", "key": "back", "type": "action"},
             {"name": "Exit to Main", "key": "exit", "type": "action"},
-        ]
-
+        ])
+    menu_items = base_items
     selected = 0
-
     while True:
+        # Refresh core label each render if custom present
+        if has_custom:
+            current_core = settings_store.get_core_type()
+            for it in menu_items:
+                if it.get('key') == 'core':
+                    it['name'] = f"Core: {current_core}"
         _render_menu(oled, menu_items, selected, debug_mode, upside_down)
         # Navigation: MENU button cycles down, OK selects
         if code_debug_pin.value() == 0:  # Down
             sleep_ms(20)
             if code_debug_pin.value() == 0:
                 selected = (selected + 1) % len(menu_items)
-                sleep_ms(250)  # Debounce / simple repeat delay
+                while code_debug_pin.value()==0:
+                    sleep_ms(15)
         if code_ok_pin.value() == 0:  # Select / activate
             sleep_ms(20)
             if code_ok_pin.value() == 0:
                 item = menu_items[selected]
-                if item["type"] == "toggle":
-                    new_state = settings_store.toggle_mute()
-                    print(f"Mute toggled -> {new_state}")
-                elif item["key"] == "exit":
-                    print("Exiting to Main" if not called_from_main else "Going Back")
-                    return "exit"
-                elif item["key"] == "back":
-                    print("Going Back")
-                    return "back"
-                sleep_ms(300)
+                if item['key'] == 'mute':
+                    settings_store.toggle_mute()
+                elif item['key'] == 'core' and has_custom:
+                    settings_store.toggle_core_type()
+                elif item['key'] in ('exit','back'):
+                    while code_ok_pin.value()==0:
+                        sleep_ms(15)
+                    return item['key']
+                while code_ok_pin.value()==0:
+                    sleep_ms(15)
         sleep_ms(30)
 
 
