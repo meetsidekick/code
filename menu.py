@@ -7,7 +7,7 @@ import ujson as json
 import os, sys
 import oled_functions
 
-PRESERVE_CUSTOM_CODE = {'custom_code_button.py', 'custom_code_pomodoro.py', 'custom_code_stopwatch.py'}  # Files never deleted by wipe
+PRESERVE_CUSTOM_CODE = {'custom_code_button.py', 'custom_code_pomodoro.py', 'custom_code_stopwatch.py', 'custom_code_winblukeys.py'}  # Files never deleted by wipe
 
 # Helper to detect custom core availability
 def _custom_core_available():
@@ -318,7 +318,7 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
     deletable_scripts = [s for s in all_scripts if s not in PRESERVE_CUSTOM_CODE]
     preserved_scripts = [s for s in all_scripts if s in PRESERVE_CUSTOM_CODE]
     
-    CONTROL = ['< Back', '< Home']
+    CONTROL = ['<  Back', '<< Home']
     idx = 0
     while True:
         total_list = deletable_scripts + preserved_scripts + CONTROL
@@ -369,7 +369,7 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
                     while code_ok_pin.value()==0: sleep_ms(15)
                     _reinit_buttons()
                     return 'back'
-                if sel == '< Home':
+                if sel == '<< Home':
                     while code_ok_pin.value()==0: sleep_ms(15)
                     _reinit_buttons()
                     return 'home'

@@ -36,7 +36,7 @@ def run(env):
         oled_text('Press OK', 0, 20)
         oled_text('Menu to exit', 0, 40)
         oled.show()
-Press OK
+
     # Wait for button release from menu
     if menu_button:
         while menu_button.value() == 0:
