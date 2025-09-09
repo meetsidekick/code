@@ -2,7 +2,7 @@ from machine import Pin, PWM
 import time
 import random
 
-from pin_values import buzzer_pin_value, led_pin_value
+from pin_values import buzzer_pin_value#, led_pin_value
 import settings_store
 import ujson as json
 
@@ -10,8 +10,8 @@ import ujson as json
 buzzer = PWM(Pin(buzzer_pin_value))
 buzzer.duty_u16(0)  # Ensure buzzer is silent at startup
 
-led = Pin(led_pin_value, Pin.OUT)
-led.value(0)        # Ensure LED is off at startup
+#led = Pin(led_pin_value, Pin.OUT)
+#led.value(0)        # Ensure LED is off at startup
 
 # Core data cache
 _core_cache = None
@@ -59,12 +59,12 @@ def play_tone(freq, duration):
         time.sleep_ms(duration)
         return
     if freq > 0:
-        led.value(1)
+        #led.value(1)
         buzzer.freq(freq)
         buzzer.duty_u16(32768)  # 50% duty cycle
     time.sleep_ms(duration)
     buzzer.duty_u16(0)
-    led.value(0)
+    #led.value(0)
 
 
 def _play_sequence(name):

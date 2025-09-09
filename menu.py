@@ -5,8 +5,9 @@ import settings_store
 import framebuf
 import ujson as json
 import os, sys
+import oled_functions
 
-PRESERVE_CUSTOM_CODE = {'custom_code_led.py'}  # Files never deleted by wipe
+PRESERVE_CUSTOM_CODE = {'custom_code_button.py'}  # Files never deleted by wipe
 
 # Helper to detect custom core availability
 def _custom_core_available():
@@ -31,14 +32,36 @@ def _list_custom_code():
 
 # Ensure example file exists (no longer inlined here; separate file)
 def _ensure_example():
-    example = 'custom_code_led.py'
+    example = 'custom_code_button.py'
     if example not in _list_custom_code():
         try:
             with open(example, 'w') as f:
-                f.write('# Auto-restored LED example stub.\n'\
-                        'def run(env):\n    oled=env.get(\'oled\'); ok=env.get(\'ok_button\'); sleep_ms=env.get(\'sleep_ms\'); Pin=env.get(\'Pin\');\n'\
-                        '    try:\n        from pin_values import led_pin_value\n        led=Pin(led_pin_value,Pin.OUT)\n    except Exception:\n        led=None\n'\
-                        '    cnt=0\n    import time\n    while True:\n        if ok and ok.value()==0:\n            while ok.value()==0: sleep_ms(15)\n            cnt+=1\n            if led:\n                try: led.value(1)\n                except: pass\n            if oled:\n                oled.fill(0); oled.text(\'Blink Example\',0,0); oled.text(\'Blink #\'+str(cnt),0,16); oled.text(\'LED ON\',0,32); oled.text(\'Menu=Exit\',0,54); oled.show()\n            sleep_ms(250)\n            if led:\n                try: led.value(0)\n                except: pass\n        # Exit if menu button (passed separately in env) pressed\n        mb = env.get(\'menu_button\')\n        if mb and mb.value()==0:\n            while mb.value()==0: sleep_ms(15)\n            return\n        if oled and cnt==0:\n            oled.fill(0); oled.text(\'Blink Example\',0,0); oled.text(\'Press OK\',0,16); oled.text(\'to Blink\',0,26); oled.text(\'Menu=Exit\',0,54); oled.show()\n        sleep_ms(40)\n')
+                f.write(('# Auto-restored button counter example.\n' 
+                         'from machine import Pin\n' 
+                         'from time import sleep_ms\n' 
+                         'from pin_values import code_ok_pin_value, code_debug_pin_value\n' 
+                         'def run(env):\n' 
+                         '    oled = env.get("oled")\n' 
+                         '    ok_button = Pin(code_ok_pin_value, Pin.IN, Pin.PULL_UP)\n' 
+                         '    menu_button = Pin(code_debug_pin_value, Pin.IN, Pin.PULL_UP)\n' 
+                         '    if oled:\n' 
+                         '        oled.fill(0)\n' 
+                         '        oled.text("Button Counter", 0, 0)\n' 
+                         '        oled.text("Press OK", 0, 20)\n' 
+                         '        oled.show()\n' 
+                         '    count = 0\n' 
+                         '    while True:\n' 
+                         '        if menu_button.value() == 0:\n' 
+                         '            return\n' 
+                         '        if ok_button.value() == 0:\n' 
+                         '            count += 1\n' 
+                         '            if oled:\n' 
+                         '                oled.fill(0)\n' 
+                         '                oled.text(f"Pressed: {count}", 0, 20)\n' 
+                         '                oled.show()\n' 
+                         '            while ok_button.value() == 0:\n' 
+                         '                sleep_ms(20)\n' 
+                         '        sleep_ms(50)\n'))
         except Exception:
             pass
 
@@ -70,8 +93,47 @@ def _run_script(filename, env):
             mod.run(env)
         else:
             print('No run(env) in', filename)
+            oled = env.get('oled')
+            if oled:
+                upside_down = env.get('upside_down', False)
+                oled.fill(0)
+                _text(oled, "Error in:", 0, 0, upside_down)
+                _text(oled, filename, 0, 12, upside_down)
+                _text(oled, "No run() found", 0, 24, upside_down)
+                _text(oled, "Press OK", 0, 48, upside_down)
+                oled.show()
+                ok_button = env.get('ok_button')
+                if ok_button:
+                    while ok_button.value() == 0: sleep_ms(20) # Wait for release
+                    while ok_button.value() != 0: sleep_ms(20) # Wait for press
+                    while ok_button.value() == 0: sleep_ms(20) # Wait for release
+
     except Exception as e:
         print('Error executing', filename, e)
+        oled = env.get('oled')
+        if oled:
+            upside_down = env.get('upside_down', False)
+            oled.fill(0)
+            _text(oled, "Error in:", 0, 0, upside_down)
+            _text(oled, filename, 0, 12, upside_down)
+            
+            error_str = str(e)
+            if len(error_str) > 16:
+                _text(oled, error_str[:16], 0, 24, upside_down)
+                if len(error_str) > 32:
+                    _text(oled, error_str[16:32], 0, 36, upside_down)
+                else:
+                    _text(oled, error_str[16:], 0, 36, upside_down)
+            else:
+                _text(oled, error_str, 0, 24, upside_down)
+
+            _text(oled, "Press OK", 0, 54, upside_down)
+            oled.show()
+            ok_button = env.get('ok_button')
+            if ok_button:
+                while ok_button.value() == 0: sleep_ms(20) # Wait for release
+                while ok_button.value() != 0: sleep_ms(20) # Wait for press
+                while ok_button.value() == 0: sleep_ms(20) # Wait for release
 
 # Helper to render text respecting upside_down
 def _text(oled, s, x, y, upside_down=False):
@@ -190,7 +252,7 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
         {"name": f"Mute", "key": "mute", "type": "toggle"},
         {"name": f"Core: {core_label}", "key": "core", "type": "action"},
         {"name": "Execute Code", "key": "exec", "type": "action"},
-        {"name": "Wipe Custom Code", "key": "wipe_custom", "type": "action"},
+        {"name": "Wipe Extra Code", "key": "wipe_custom", "type": "action"},
         {"name": "Reset Settings", "key": "reset", "type": "action"},
     ]
     if called_from_main:
@@ -230,6 +292,7 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
                 elif item['key'] == 'core':
                     if has_custom:
                         settings_store.toggle_core_type()
+                        oled_functions.reload_core()
                 elif item['key'] == 'exec':
                     result = _execute_code_menu(oled, debug_mode, upside_down, env)
                     if result == 'home':

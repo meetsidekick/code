@@ -21,35 +21,45 @@ DEFAULT_FACES = {
     "shake": ['(@_@)', '(@_@)', '(x_x)', '(x_x)', '(x_x)', '(O_o)'],
 }
 
-# Load core faces
-_core_cache = None
+_core = {}
+FACES = {}
+DEFAULT_UPSIDE = False
 
 def _load_core():
-    global _core_cache
-    if _core_cache is not None:
-        return _core_cache
-    for fname in ("custom_core.json", "default_core.json"):
+    core_type = settings_store.get_core_type()
+    
+    files_to_try = []
+    if core_type == 'Custom':
+        files_to_try.append('custom_core.json')
+    files_to_try.append('default_core.json')
+
+    data = None
+    for fname in files_to_try:
         try:
             with open(fname, 'r') as f:
                 data = json.load(f)
-            faces = data.get('faces', {}) if isinstance(data, dict) else {}
-            merged = dict(DEFAULT_FACES)
-            for k, v in faces.items():
-                if isinstance(v, list) and v:
-                    merged[k] = v
-            data['faces'] = merged
-            if 'faces' in data:
-                _core_cache = data
-                return _core_cache
+                break # Stop after finding a file
         except Exception:
             continue
-    # Fallback purely defaults
-    _core_cache = {"faces": dict(DEFAULT_FACES), "display": {"upside_down": False}}
-    return _core_cache
+    
+    if not isinstance(data, dict):
+        data = {}
 
-_core = _load_core()
-DEFAULT_UPSIDE = _core.get('display', {}).get('upside_down', False)
-FACES = _core.get('faces', dict(DEFAULT_FACES))
+    faces = data.get('faces', {})
+    merged_faces = dict(DEFAULT_FACES)
+    merged_faces.update(faces)
+    data['faces'] = merged_faces
+    
+    return data
+
+def reload_core():
+    global _core, FACES, DEFAULT_UPSIDE
+    _core = _load_core()
+    FACES = _core.get('faces', dict(DEFAULT_FACES))
+    DEFAULT_UPSIDE = _core.get('display', {}).get('upside_down', False)
+
+# Initial load
+reload_core()
 
 # Small text helper that respects upside_down
 def _text(oled, text, x, y, upside_down=False):
