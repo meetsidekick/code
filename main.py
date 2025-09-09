@@ -103,12 +103,12 @@ STILL_RANGE_THRESHOLD = 1200     # If (max-min) below this AND low active sample
 baseline_noise = BASELINE_NOISE_START
 
 # === STARTUP/INTRO ===
-print("🤖 Robot Pet Starting Up! (˶ᵔ ᵕ ᵔ˶)")
+print("🤖 Sidekick Starting Up! (˶ᵔ ᵕ ᵔ˶)")
 startup_shush()
 
 safe_oled_update("happy", 85)
 startup_sequence()
-print("🎮 Robot Pet Ready! (っ´ω`)ﾉ")
+print("🎮 Sidekick Ready! (っ´ω`)ﾉ")
 
 # Initialize previous_accel for difference calculation
 try:

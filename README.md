@@ -1,5 +1,5 @@
 # MPU6050-MicroPython
-A very simple portable "Sidekick" Bot powered by GY-521 IMU 3-axis Accelerometer/Gyro Module (MPU6050) on ESP32 using MicroPython
+A very simple portable "Sidekick" Bot powered by an IMU called ADXL345 on ESP32 using MicroPython
 
 ## Info
 A simple expressive home-made Open-Source Buddy made with lying-around hobbyist parts, powered by an ESP32 Development Board. Thanks to this, it will be infinitely hackable, allowing end users to install their own firmware or features if they wish.
@@ -7,22 +7,24 @@ A simple expressive home-made Open-Source Buddy made with lying-around hobbyist 
 Loosely inspired by tamagotchi and community-made desk toys, it will react to its surroundings through gyro movement, and expresses itself accordingly through the display and more!
 
 > [!NOTE] 
-> Project state: Initial Planning/FAFO
+> Project state: Development of `v0`
 
 <!--Future home for the project: https://github.com/sounddrill31/Social-Buddy/-->
 
-Project Code: https://github.com/MakerSidekick/code
+Project Code: https://github.com/MeetSidekick/code
 
+
+# Development Setup
 ## Automatic Setup/Flash
 
 ### Prepare this repo:
 ```bash
-git clone https://github.com/MakerSidekick/MakerSidekick-Bot
+git clone https://github.com/MeetSidekick/code MeetSidekick-code
 ```
 
 ### Enter the Folder: 
 ```bash
-cd MakerSidekick-Bot
+cd MeetSidekick-code
 ```
 
 ### Setup Prerequisites:
@@ -57,12 +59,12 @@ pixi run upload
 
 ### Prepare this repo:
 ```bash
-git clone https://github.com/MakerSidekick/MakerSidekick-Bot
+git clone https://github.com/MeetSidekick/code MeetSidekick-code
 ```
 
 ### Enter the Folder: 
 ```bash
-cd MakerSidekick-Bot
+cd MeetSidekick-code
 ```
 
 ### Clone Libraries:
@@ -97,7 +99,7 @@ del "lib\setup.py"
 
 ### Next Steps:
 > [!TIP]
-> Automating this with mpremote would be prudent. Check out upload-to-esp32.py in this folder.
+> Automating this with mpremote would be prudent. Check out upload-to-esp32.py in this folder, this is done automatically. Here are the steps to do it manually:
 
 - Open Folder in Thonny
 - Upload lib folder
@@ -106,44 +108,60 @@ del "lib\setup.py"
 ## Modes
 ### Normal Mode 
 <!-- Attach Pic -->
-Social Buddy, the Maker's Sidekick! It will react to surroundings 
+Normal Sidekick! It will react to surroundings 
 
 ### Menu Mode 
 <!-- Attach Pic-->
-Select Options. Placeholder for now, it just blinks led 25 times
+This allows the user to:
+- Mute/Unmute
+- Switch Personality Cores
+- Execute User Code
+- Wipe Stuff(User Code, Settings, etc)
 
-Eventually will be able to launch user's custom code! 
-<!-- ### Custom Code Mode-->
+<!-- Eventually will be able to launch user's custom code! -->
+
+### Code Loader Mode
+With this, any user can place files called `custom_code_CodeTitle.py`, where the title of the program to be detected in the Code Loader is CodeTitle(change this to your liking).
+
 
 
 ## Wiring
-Pin assignment for ESP32 and MPU6050:\
+
+### IIC/I2C
+Pin assignment for ESP32 and IMU/Display:\
 VCC -> 3v3\
 GND -> GND\
-SCL -> GPIO A0\
-SDA -> GPIO A1
+SCL -> GPIO 5\
+SDA -> GPIO 4
 
 > [!TIP]
-> (You can change SCL pin and SDA pin in file [main.py line 17](main.py#L17))
+> (You can change SCL pin and SDA pin in file [main.py line 36](main.py#L36))
 
+
+### Buzzer
 Pin assignment for ESP32 and Buzzer:\
 GPIO 8 -> Buzzer Terminal\
 GND -> Buzzer Terminal
 > [!TIP]
-> (You can change buzzer pin in file [pin_values.py line 6](pin_values.py#L6))
+> (You can change buzzer pin in file [pin_values.py line 5](pin_values.py#L5))
 
+
+### Touch
 > [!WARNING]
-> Touch pin isn't working as expected :( 
-    It works as a touch pin but it's not super good at sensing values, especially when the device is far-ish away! 
-
-Pin assignment for ESP32 and Touch Pin(For registering headpats):\
-GND --(Resistor with 220k to 560k Ohm)--> Pin A2 -> Metal Contact
+> Touch Pin is disabled for now! This needs more testing and work...
+Pin assignment for ESP32 and Touch Pin(For registering hold data):\
+GND --(Resistor with 220k to 560k Ohm)--> Pin A3 -> Metal Contact
 
 > [!TIP]
 > (You can change touch pin in file [pin_values.py line 4](pin_values.py#L4)) 
 
-Pin assignment for ESP32 to Debug Pin(<!--To start code execution-->, for debugging):\
-GPIO 8 -> GND
+### Buttons
+Pin assignment for ESP32 to Menu Pin:\
+GPIO 1 -> GND
 > [!TIP]
-> (You can change enable pin in file [pin_values.py line 5](pin_values.py#L5))
-If this button is pressed in main mode, it stops execution. If it is pressed in debug mode, it exits the menu and goes back to main mode. 
+> (You can change enable pin in file [pin_values.py line 3](pin_values.py#L3))
+
+Pin assignment for ESP32 to OK Pin:\
+GPIO 0 -> GND
+> [!TIP]
+> (You can change enable pin in file [pin_values.py line 4](pin_values.py#L4))
