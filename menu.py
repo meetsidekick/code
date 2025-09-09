@@ -7,7 +7,7 @@ import ujson as json
 import os, sys
 import oled_functions
 
-PRESERVE_CUSTOM_CODE = {'custom_code_button.py', 'custom_code_pomodoro.py'}  # Files never deleted by wipe
+PRESERVE_CUSTOM_CODE = {'custom_code_button.py', 'custom_code_pomodoro.py', 'custom_code_stopwatch.py'}  # Files never deleted by wipe
 
 # Helper to detect custom core availability
 def _custom_core_available():
@@ -327,7 +327,7 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
         try:
             if oled:
                 oled.fill(0)
-                _text(oled, 'Execute', 0, 0, upside_down)
+                _text(oled, 'Code Loader', 0, 0, upside_down)
                 for i, entry in enumerate(view):
                     global_index = start + i
                     marker = '>' if global_index == idx else ' '
@@ -338,7 +338,7 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
                     _text(oled, '^', 120, 0, upside_down)
                 if (start + window_size) < len(total_list):
                     _text(oled, 'v', 120, 54, upside_down)
-                _text(oled, 'Short=Dn Long=Up', 0, 54, upside_down)
+                _text(oled, 'OP=Down,OK=Yes', 0, 54, upside_down)
                 oled.show()
             else:
                 print('--- EXECUTE ---')
