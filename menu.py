@@ -32,7 +32,7 @@ def _list_custom_code():
 
 # Ensure example file exists (no longer inlined here; separate file)
 def _ensure_example():
-    example = 'custom_code_button.py'
+    example = 'custom_code_ButtonClick.py'
     if example not in _list_custom_code():
         try:
             with open(example, 'w') as f:
