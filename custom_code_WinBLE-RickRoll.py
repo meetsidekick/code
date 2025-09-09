@@ -15,7 +15,7 @@ def run_payload(ble_hid):
     sleep_ms(500)
     send_key(ble_hid, MOD_LEFT_GUI, KEY_R)
     sleep_ms(2000)
-    type_string(ble_hid, "edge https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    type_string(ble_hid, "edge --new-window --app=https://www.youtube.com/watch?v=dQw4w9WgXcQ")
     sleep_ms(2000)
     send_key(ble_hid, 0, KEY_ENTER)
     print("Payload sent.")
