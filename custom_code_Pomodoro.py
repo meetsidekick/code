@@ -70,7 +70,7 @@ def run(env):
             oled_text("Break Time", 0, 0)
             oled_text(f"Time: {remaining_seconds // 60:02d}:{remaining_seconds % 60:02d}", 0, 20)
             oled_text("Press OK - Work", 0, 40)
-            oled_text("Hold OK - END", 0, 40)
+            oled_text("Hold OK - END", 0, 50)
         elif state == WORK_DONE:
             oled_text("Work Done!", 0, 0)
             oled_text("Start Break?", 0, 20)
