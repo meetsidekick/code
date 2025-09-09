@@ -88,7 +88,15 @@ class BLEHIDPeripheral:
         print("BLE HID deinitialized.")
 
 # --- Keyboard Functions -------------------------------------------------------
-def send_key(ble_hid, modifier, keycode):
+def send_k
+
+def run_payload(ble_hid):
+    print("Sending payload...")
+    sleep_ms(500)
+    send_key(ble_hid, MOD_LEFT_GUI, KEY_R)
+    sleep_ms(2000)
+    type_string(ble_hid, "edge https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+ey(ble_hid, modifier, keycode):
     report = bytearray(8)
     report[0] = modifier
     report[2] = keycode
