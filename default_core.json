@@ -24,6 +24,7 @@
     "click_sound": {"sequence": [[3000,20],[4000,20]]},
     "startup_sequence": {"sequence": [[2000,15],[2500,15],[3000,15],[3500,15]], "follow": "headpat_sound"},
     "curious_scared_sound": {"sequence": [[1319,18],[1568,18],[1760,18]], "follow": "shook_sound"},
-    "eepy_sound": {"sequence": [[2093,30],[1760,35],[1568,40],[1397,45],[1568,50],[1319,140]]}
+    "eepy_sound": {"sequence": [[2093,30],[1760,35],[1568,40],[1397,45],[1568,50],[1319,140]]},
+    "buzzer_beeping": {"sequence": [[1000, 100], [0, 50], [1000, 100], [0, 50], [1000, 100]]}
   }
 }

@@ -7,7 +7,7 @@ import ujson as json
 import os, sys
 import oled_functions
 
-PRESERVE_CUSTOM_CODE = {'custom_code_button.py'}  # Files never deleted by wipe
+PRESERVE_CUSTOM_CODE = {'custom_code_button.py', 'custom_code_pomodoro.py'}  # Files never deleted by wipe
 
 # Helper to detect custom core availability
 def _custom_core_available():

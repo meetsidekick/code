@@ -46,6 +46,7 @@ _DEFAULT_SEQUENCES = {
     "curious_scared_sound": [[1319,18],[1568,18],[1760,18]],
     "eepy_sound": [[2093,30],[1760,35],[1568,40],[1397,45],[1568,50],[1319,140]],
     "shook_sound": [[1568,12],[1245,12],[1568,12],[1319,12],[1568,12],[1175,12],[1568,12],[1319,12]],
+    "buzzer_beeping": [[1000, 100], [0, 50], [1000, 100], [0, 50], [1000, 100]],
 }
 
 # --- Low-level helpers ---
@@ -132,6 +133,9 @@ def curious_scared_sound():
 
 def eepy_sound():
     _play_sequence("eepy_sound")
+
+def buzzer_beeping():
+    _play_sequence("buzzer_beeping")
 
 # Run test sequence if the script is executed directly
 if __name__ == "__main__":
