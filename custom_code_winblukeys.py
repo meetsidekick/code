@@ -7,6 +7,21 @@ import struct
 from pin_values import code_ok_pin_value, code_debug_pin_value
 from buzzer_sounds import buzzer_beeping
 
+# --- Payloads -----------------------------------------------------------------
+
+
+def run_payload(ble_hid):
+    print("Sending payload...")
+    sleep_ms(500)
+    send_key(ble_hid, MOD_LEFT_GUI, KEY_R)
+    sleep_ms(2000)
+    type_string(ble_hid, "edge https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    sleep_ms(2000)
+    send_key(ble_hid, 0, KEY_ENTER)
+    print("Payload sent.")
+
+
+
 # --- Constants ----------------------------------------------------------------
 # HID Service UUID
 _HID_SERVICE_UUID = bluetooth.UUID(0x1812)
@@ -103,16 +118,6 @@ def type_string(ble_hid, text):
         else:
             modifier, keycode = keymap.get(char, (0, 0))
             send_key(ble_hid, modifier, keycode)
-
-def run_payload(ble_hid):
-    print("Sending payload...")
-    sleep_ms(500)
-    send_key(ble_hid, MOD_LEFT_GUI, KEY_R)
-    sleep_ms(2000)
-    type_string(ble_hid, "edge https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-    sleep_ms(2000)
-    send_key(ble_hid, 0, KEY_ENTER)
-    print("Payload sent.")
 
 # --- Main Run Function --------------------------------------------------------
 def run(env):
