@@ -13,6 +13,8 @@ HOLD_THRESHOLD_MS = 1000  # 1 second to register a hold
 IDLE = 0
 WORK = 1
 BREAK = 2
+WORK_DONE = 3
+BREAK_DONE = 4
 
 def run(env):
     oled = env.get('oled')
@@ -62,11 +64,21 @@ def run(env):
             remaining_seconds = max(0, ticks_diff(timer_end_ms, ticks_ms()) // 1000)
             oled_text("Work Session", 0, 0)
             oled_text(f"Time: {remaining_seconds // 60:02d}:{remaining_seconds % 60:02d}", 0, 20)
-            oled_text("Hold OK - Break", 0, 40)
+            oled_text("Hold OK - break", 0, 40)
         elif state == BREAK:
             remaining_seconds = max(0, ticks_diff(timer_end_ms, ticks_ms()) // 1000)
             oled_text("Break Time", 0, 0)
             oled_text(f"Time: {remaining_seconds // 60:02d}:{remaining_seconds % 60:02d}", 0, 20)
+            oled_text("Press OK - Work", 0, 40)
+            oled_text("Hold OK - END", 0, 40)
+        elif state == WORK_DONE:
+            oled_text("Work Done!", 0, 0)
+            oled_text("Start Break?", 0, 20)
+            oled_text("Press OK - Break", 0, 40)
+            oled_text("Hold OK - END", 0, 50)
+        elif state == BREAK_DONE:
+            oled_text("Break Done!", 0, 0)
+            oled_text("Continue Work?", 0, 20)
             oled_text("Press OK - Work", 0, 40)
             oled_text("Hold OK - END", 0, 50)
         oled.show()
@@ -81,13 +93,11 @@ def run(env):
         if state == WORK and now >= timer_end_ms:
             pomodoros_completed += 1
             total_work_seconds += (now - session_start_ms) // 1000
-            state = BREAK
-            session_start_ms = now
-            timer_end_ms = now + BREAK_MINUTES * 60 * 1000
+            state = WORK_DONE
             buzzer_beeping()
         elif state == BREAK and now >= timer_end_ms:
             total_break_seconds += (now - session_start_ms) // 1000
-            state = IDLE
+            state = BREAK_DONE
             buzzer_beeping()
 
         # --- Button Events ---
@@ -116,9 +126,22 @@ def run(env):
                     total_break_seconds += (now - session_start_ms) // 1000
                     state = IDLE
                     buzzer_beeping()
+                elif state == WORK_DONE or state == BREAK_DONE:
+                    state = IDLE
+                    buzzer_beeping()
             else: # Short press
                 if state == BREAK:
                     total_break_seconds += (now - session_start_ms) // 1000
+                    state = WORK
+                    session_start_ms = now
+                    timer_end_ms = now + WORK_MINUTES * 60 * 1000
+                    buzzer_beeping()
+                elif state == WORK_DONE:
+                    state = BREAK
+                    session_start_ms = now
+                    timer_end_ms = now + BREAK_MINUTES * 60 * 1000
+                    buzzer_beeping()
+                elif state == BREAK_DONE:
                     state = WORK
                     session_start_ms = now
                     timer_end_ms = now + WORK_MINUTES * 60 * 1000
