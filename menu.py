@@ -313,11 +313,15 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
 def _execute_code_menu(oled, debug_mode, upside_down, env):
     _reinit_buttons()
     _ensure_example()
-    scripts = _list_custom_code()
+    all_scripts = _list_custom_code()
+    
+    deletable_scripts = [s for s in all_scripts if s not in PRESERVE_CUSTOM_CODE]
+    preserved_scripts = [s for s in all_scripts if s in PRESERVE_CUSTOM_CODE]
+    
     CONTROL = ['< Back', '< Home']
     idx = 0
     while True:
-        total_list = CONTROL + scripts
+        total_list = deletable_scripts + preserved_scripts + CONTROL
         window_size = 4
         if len(total_list) <= window_size:
             start = 0
