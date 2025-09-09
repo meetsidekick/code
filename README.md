@@ -1,5 +1,5 @@
-# MPU6050-MicroPython
-A very simple portable "Sidekick" Bot powered by an IMU called ADXL345 on ESP32 using MicroPython
+# Sidekick v0
+A very simple portable "Sidekick" Bot powered by an IMU(ADXL345) on ESP32 using MicroPython
 
 ## Info
 A simple expressive home-made Open-Source Buddy made with lying-around hobbyist parts, powered by an ESP32 Development Board. Thanks to this, it will be infinitely hackable, allowing end users to install their own firmware or features if they wish.
@@ -7,10 +7,9 @@ A simple expressive home-made Open-Source Buddy made with lying-around hobbyist 
 Loosely inspired by tamagotchi and community-made desk toys, it will react to its surroundings through gyro movement, and expresses itself accordingly through the display and more!
 
 > [!NOTE] 
-> Project state: Development of `v0`
+> Project state: WIP `v0`
 
-<!--Future home for the project: https://github.com/sounddrill31/Social-Buddy/-->
-
+Project Homepage: https://meetsidekick.tech
 Project Code: https://github.com/MeetSidekick/code
 
 
