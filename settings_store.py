@@ -5,9 +5,13 @@ import ujson as json
 import os  # added for file deletion
 
 _SETTINGS_FILE = "settings.json"
+import binascii # Added for sidekick_id generation
+
+_SETTINGS_FILE = "settings.json"
 _default_settings = {
     "mute": False,
     "core_type": "Custom",  # Default highlight Custom; fallback to Default if not present
+    "sidekick_id": None, # New default for sidekick_id
 }
 
 _settings = {}
@@ -52,6 +56,15 @@ def toggle_core_type():
     _save()
     return _settings["core_type"]
 
+
+def get_sidekick_id():
+    global _settings
+    if "sidekick_id" not in _settings or _settings["sidekick_id"] is None:
+        # Generate a new unique ID if it doesn't exist
+        # Using os.urandom for a reasonably unique ID in MicroPython, truncated to 4 hex digits
+        _settings["sidekick_id"] = binascii.hexlify(os.urandom(2)).decode('utf-8') # 2 bytes = 4 hex digits
+        _save()
+    return _settings["sidekick_id"]
 
 def reset_settings():
     """Delete settings file and restore defaults in memory and on disk."""

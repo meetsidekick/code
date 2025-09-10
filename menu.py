@@ -240,6 +240,23 @@ def _render_menu(oled, items, idx, debug=False, upside_down=False):
     except Exception:
         pass
 
+def _display_sidekick_id(oled, upside_down, ok_button):
+    sidekick_id = settings_store.get_sidekick_id()
+    if oled:
+        oled.fill(0)
+        _text(oled, "Sidekick ID:", 0, 0, upside_down)
+        _text(oled, str(sidekick_id), 0, 20, upside_down)
+        _text(oled, "Press OK to exit", 0, 40, upside_down)
+        oled.show()
+    else:
+        print(f"Sidekick ID: {sidekick_id}")
+        print("Press OK to exit")
+
+    if ok_button:
+        while ok_button.value() == 0: sleep_ms(20) # Wait for release
+        while ok_button.value() != 0: sleep_ms(20) # Wait for press
+        while ok_button.value() == 0: sleep_ms(20) # Wait for release
+
 
 def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=True, env=None):
     _reinit_buttons()  # ensure fresh button objects each time menu opens
@@ -251,8 +268,9 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
     base_items = [
         {"name": f"Mute", "key": "mute", "type": "toggle"},
         {"name": f"Core: {core_label}", "key": "core", "type": "action"},
-        {"name": "Execute Code", "key": "exec", "type": "action"},
-        {"name": "Wipe Extra Code", "key": "wipe_custom", "type": "action"},
+        {"name": "See Sidekick ID", "key": "sidekick_id", "type": "action"},
+        {"name": "Run Custom Apps", "key": "exec", "type": "action"},
+        {"name": "Wipe Extra Apps", "key": "wipe_custom", "type": "action"},
         {"name": "Reset Settings", "key": "reset", "type": "action"},
     ]
     if called_from_main:
@@ -293,6 +311,8 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
                     if has_custom:
                         settings_store.toggle_core_type()
                         oled_functions.reload_core()
+                elif item['key'] == 'sidekick_id':
+                    _display_sidekick_id(oled, upside_down, env.get('ok_button'))
                 elif item['key'] == 'exec':
                     result = _execute_code_menu(oled, debug_mode, upside_down, env)
                     if result == 'home':
@@ -400,5 +420,3 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
                 while code_debug_pin.value()==0 or code_ok_pin.value()==0: sleep_ms(15)
                 return 'back'
         sleep_ms(35)
-
-
