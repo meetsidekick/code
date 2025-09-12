@@ -109,6 +109,7 @@ def _run_script(filename, env):
                     while ok_button.value() == 0: sleep_ms(20) # Wait for release
 
     except Exception as e:
+        sys.print_exception(e, sys.stderr) # Print full traceback to console
         print('Error executing', filename, e)
         oled = env.get('oled')
         if oled:
