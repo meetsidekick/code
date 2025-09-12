@@ -54,9 +54,10 @@ _HID_REPORT_DESCRIPTOR = bytearray([
 
 # --- BLE HID Class ------------------------------------------------------------
 class BLEHIDPeripheral:
-    def __init__(self, name='Sidekick_Blukeys'):
+    def __init__(self, name='Sidekick'):
         self._ble = bluetooth.BLE()
         self._ble.active(True)
+        sleep_ms(100) # Give BLE stack a moment to initialize
         self._ble.irq(self._irq)
         hid_service = (_HID_SERVICE_UUID, ((_REPORT_MAP_CHAR_UUID, bluetooth.FLAG_READ), (_REPORT_CHAR_UUID, bluetooth.FLAG_NOTIFY),))
         handles = self._ble.gatts_register_services((hid_service,))
