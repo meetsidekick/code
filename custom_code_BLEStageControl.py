@@ -123,7 +123,7 @@ def run(env):
     menu_button = Pin(code_debug_pin_value, Pin.IN, Pin.PULL_UP)
 
     sidekick_id = settings_store.get_sidekick_id()
-    device_name = f"Sidekick_Blukeys_{sidekick_id}"
+    device_name = f"Sidekick_{sidekick_id}"
 
     ble_hid = None
     connection_status = "Initializing..."
