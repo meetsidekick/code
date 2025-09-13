@@ -106,25 +106,46 @@ del "lib\setup.py"
 
 ## Modes
 ### Normal Mode 
-<!-- Attach Pic -->
+<!-- TODO Attach Pic -->
 Normal Sidekick! It will react to surroundings 
 
 ### Menu Mode 
-<!-- Attach Pic-->
+<!-- TODO Attach Pic-->
 This allows the user to:
 - Mute/Unmute
 - Switch Personality Cores
 - Execute User Code
 - Wipe Stuff(User Code, Settings, etc)
 
-<!-- Eventually will be able to launch user's custom code! -->
+<!-- Eventually will be able to launch user's custom code! Update: done!-->
 
 ### Code Loader Mode
-With this, any user can place files called `custom_code_CodeTitle.py`, where the title of the program to be detected in the Code Loader is CodeTitle(change this to your liking).
+With this, any user can place files called `custom_code_CodeTitle.py`, where the title of the program to be detected in the Code Loader is CodeTitle(change this to your liking). See next section for builtin examples.
 
 
+# Custom Code
 
-## Wiring
+## Builtin
+### Tools
+- BLEStageControl
+    - Bluetooth Presentation clicker. Needs to pair every time.
+- WinBLERickroll
+    - Same idea as above but rickrolls a windows user.
+- DeviceTemp
+    - Demo program to output the builtin temp sensor on the chip.
+- Pomodoro Timer
+    - A simple pomodoro timer to keep breaks.
+- Stopwatch
+    - A simple stopwatch for temporary counting.
+- WifiScan
+    - Scan nearby Wifi SSIDs
+### Games
+- Rhythm Game using two buttons 
+- Flappy Clone
+- Dino 
+<!-- TODO Expand -->
+
+# Wiring
 
 ### IIC/I2C
 Pin assignment for ESP32 and IMU/Display:\
@@ -164,3 +185,4 @@ Pin assignment for ESP32 to OK Pin:\
 GPIO 0 -> GND
 > [!TIP]
 > (You can change enable pin in file [pin_values.py line 4](pin_values.py#L4))
+

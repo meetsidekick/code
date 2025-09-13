@@ -7,7 +7,7 @@ import ujson as json
 import os, sys
 import oled_functions
 
-PRESERVE_CUSTOM_CODE = {'custom_code_Dice.py', 'custom_code_ButtonClick.py', 'custom_code_Pomodoro.py', 'custom_code_Stopwatch.py', 'custom_code_WinBLE-RickRoll.py', 'custom_code_DeviceTemp.py', 'custom_code_WifiScan.py', 'custom_code_BLEStageControl.py'}  # Files never deleted by wipe
+PRESERVE_CUSTOM_CODE = {'custom_code_Dice.py', 'custom_code_ButtonClick.py', 'custom_code_Pomodoro.py', 'custom_code_Stopwatch.py', 'custom_code_WinBLE-RickRoll.py', 'custom_code_DeviceTemp.py', 'custom_code_WifiScan.py', 'custom_code_BLEStageControl.py', 'custom_code_RhythmGame.py'}  # Files never deleted by wipe
 
 # Helper to detect custom core availability
 def _custom_core_available():
@@ -399,6 +399,7 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
                     env_full = {
                         'oled': env.get('oled') if env else oled,
                         'mpu': env.get('mpu') if env else None,
+                        'i2c': env.get('i2c') if env else None, # Pass i2c bus
                         'open_menu': (lambda : open_menu(oled, debug_mode, upside_down, True, env)),
                         'menu_button': code_debug_pin,
                         'ok_button': code_ok_pin,
