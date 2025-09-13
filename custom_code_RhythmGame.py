@@ -4,7 +4,12 @@
 import random
 from time import sleep_ms, ticks_ms, ticks_diff
 from oled_functions import _text, _draw_ascii, DEFAULT_UPSIDE
-from buzzer_sounds import play_tone
+from machine import Pin, PWM
+from pin_values import buzzer_pin_value
+
+# --- Buzzer Setup ---
+buzzer = PWM(Pin(buzzer_pin_value))
+buzzer.duty_u16(0)
 
 # --- Tuning and Settings ---
 BPM = 120
@@ -17,7 +22,7 @@ PREVIEW_WINDOW_MS = 1500
 SCALE = [523, 587, 659, 784, 880, 1047] # C Major Pentatonic
 NOTE_DURATIONS = [BEAT_MS // 2, BEAT_MS - 50]
 
-# --- Beat Types (Button Only) ---
+# --- Beat Types (Button Only) --
 B1 = 1
 B2 = 2
 BOTH = 3
@@ -27,6 +32,13 @@ CUE_Y_POS = { B1: 20, B2: 35, BOTH: 28 }
 
 # --- Game State ---
 game_state = {}
+
+def play_sound(freq, duration):
+    global game_state
+    if freq > 0:
+        buzzer.freq(freq)
+        buzzer.duty_u16(32768)
+        game_state["sound_off_time"] = ticks_ms() + duration
 
 def generate_sequence():
     sequence = []
@@ -52,6 +64,7 @@ def init_game():
         "start_time": ticks_ms(),
         "last_feedback": "", "feedback_time": 0,
         "game_over": False,
+        "sound_off_time": 0,
     }
 
 def draw_start_menu(oled, upside_down):
@@ -101,6 +114,10 @@ def draw_game(oled, upside_down):
     oled.show()
 
 def update_game(b1, b2):
+    if game_state["sound_off_time"] > 0 and ticks_ms() >= game_state["sound_off_time"]:
+        buzzer.duty_u16(0)
+        game_state["sound_off_time"] = 0
+
     now = ticks_diff(ticks_ms(), game_state["start_time"])
     idx = game_state["current_beat_index"]
 
@@ -145,7 +162,7 @@ def update_game(b1, b2):
 
     beat = game_state["sequence"][idx]
     if not beat["played"] and now >= beat["time"]:
-        play_tone(beat["freq"], beat["duration"])
+        play_sound(beat["freq"], beat["duration"])
         beat["played"] = True
 
     if now > beat["time"] + TIMING_WINDOW_MS:
@@ -188,3 +205,4 @@ def run(env):
     
     draw_game(oled, upside_down)
     sleep_ms(5000)
+    buzzer.duty_u16(0) # Ensure buzzer is off when the game ends
