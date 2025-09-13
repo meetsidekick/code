@@ -7,7 +7,7 @@ import ujson as json
 import os, sys
 import oled_functions
 
-PRESERVE_CUSTOM_CODE = {'custom_code_Dice.py', 'custom_code_ButtonClick.py', 'custom_code_Pomodoro.py', 'custom_code_Stopwatch.py', 'custom_code_WinBLE-RickRoll.py', 'custom_code_DeviceTemp.py', 'custom_code_WifiScan.py', 'custom_code_BLEStageControl.py', 'custom_code_RhythmGame.py'}  # Files never deleted by wipe
+PRESERVE_CUSTOM_CODE = {'custom_code_Dice.py', 'custom_code_ButtonClick.py', 'custom_code_Pomodoro.py', 'custom_code_Stopwatch.py', 'custom_code_WinBLE-RickRoll.py', 'custom_code_DeviceTemp.py', 'custom_code_WifiScan.py', 'custom_code_BLEStageControl.py', 'custom_code_RhythmGame.py', 'custom_code_FlappyGame.py', 'custom_code_DinoGame.py', 'custom_code_SnakeGame.py', 'custom_code_Breakout.py'}  # Files never deleted by wipe
 
 # Helper to detect custom core availability
 def _custom_core_available():
