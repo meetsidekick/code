@@ -44,6 +44,7 @@ def _draw_rect(oled, x, y, w, h, c, upside_down):
 
 def reset_ball_and_paddle():
     game_state["paddle_x"] = (SCREEN_WIDTH - PADDLE_WIDTH) // 2
+    game_state["paddle_vx"] = 0
     game_state["ball_x"] = SCREEN_WIDTH // 2
     game_state["ball_y"] = SCREEN_HEIGHT // 2
     angle = random.uniform(0.7, 2.4)
@@ -57,6 +58,7 @@ def init_game():
         "game_over": False, "game_won": False,
         "ax_offset": 0, "ay_offset": 0,
         "new_life_sequence": True,
+        "paddle_vx": 0,
     }
     bricks = []
     for r in range(BRICK_ROWS):
@@ -114,44 +116,33 @@ def draw_game(oled, upside_down):
     _text(oled, f"S:{game_state['score']} L:{game_state['lives']}", 0, 0, upside_down)
     oled.show()
 
-def update_game(adxl, upside_down):
-    if game_state["game_over"] or game_state["game_won"] or game_state.get("new_life_sequence", False): return
-
+def update_paddle_position(adxl, upside_down):
     raw_ax, raw_ay, _ = adxl.read_accel_data()
-    # This inversion is to normalize the physical action of tilting.
-    # A physical right tilt should always correspond to the same logical event.
     if upside_down:
         raw_ax = -raw_ax
         raw_ay = -raw_ay
 
-    # --- Ratcheting/Relative Paddle Control ---
     is_ax_control = abs(raw_ax - game_state["ax_offset"]) > abs(raw_ay - game_state["ay_offset"])
     control_val = raw_ax if is_ax_control else raw_ay
     offset = game_state["ax_offset"] if is_ax_control else game_state["ay_offset"]
     effective_tilt = control_val - offset
+    
     paddle_vx = 0
-
     if abs(effective_tilt) > ACCEL_DEAD_ZONE:
         clamped_tilt = max(-ACCEL_MAX_TILT, min(effective_tilt, ACCEL_MAX_TILT))
         paddle_vx = -(clamped_tilt / ACCEL_MAX_TILT) * PADDLE_MAX_SPEED
 
-    # If screen is upside down, the display coordinates are flipped.
-    # A positive velocity must therefore move the paddle to a lower X coordinate.
     if upside_down:
         paddle_vx *= -1
 
-    next_paddle_x = game_state["paddle_x"] + paddle_vx
+    # Simplest possible logic: apply velocity and clamp.
+    next_pos = game_state["paddle_x"] + paddle_vx
+    game_state["paddle_x"] = max(0, min(next_pos, SCREEN_WIDTH - PADDLE_WIDTH))
 
-    if next_paddle_x < 0:
-        game_state["paddle_x"] = 0
-        if is_ax_control: game_state["ax_offset"] = raw_ax
-        else: game_state["ay_offset"] = raw_ay
-    elif next_paddle_x > SCREEN_WIDTH - PADDLE_WIDTH:
-        game_state["paddle_x"] = SCREEN_WIDTH - PADDLE_WIDTH
-        if is_ax_control: game_state["ax_offset"] = raw_ax
-        else: game_state["ay_offset"] = raw_ay
-    else:
-        game_state["paddle_x"] = next_paddle_x
+def update_game(adxl, upside_down):
+    if game_state["game_over"] or game_state["game_won"] or game_state.get("new_life_sequence", False): return
+
+    update_paddle_position(adxl, upside_down)
 
     # --- Ball and Game Logic ---
     game_state["ball_x"] += game_state["ball_vx"]
@@ -211,6 +202,12 @@ def run(env):
             if game_state.get("new_life_sequence"):
                 countdown_and_calibrate(adxl, oled, upside_down)
                 reset_ball_and_paddle()
+                # Get Ready Phase
+                t_start = ticks_ms()
+                while ticks_diff(ticks_ms(), t_start) < 1000:
+                    update_paddle_position(adxl, upside_down)
+                    draw_game(oled, upside_down)
+                    sleep_ms(16)
                 game_state["new_life_sequence"] = False
                 last_frame_time = ticks_ms()
 
