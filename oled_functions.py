@@ -63,6 +63,8 @@ reload_core()
 
 # Small text helper that respects upside_down
 def _text(oled, text, x, y, upside_down=False):
+    if not text:
+        return
     if not upside_down:
         oled.text(text, x, y)
         return
