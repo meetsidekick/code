@@ -6,6 +6,7 @@ from time import sleep_ms, ticks_ms, ticks_diff
 from oled_functions import _text, _draw_ascii, DEFAULT_UPSIDE
 from machine import Pin, PWM
 from pin_values import buzzer_pin_value
+import settings_store
 
 # --- Buzzer Setup ---
 buzzer = PWM(Pin(buzzer_pin_value))
@@ -34,6 +35,8 @@ CUE_Y_POS = { B1: 20, B2: 35, BOTH: 28 }
 game_state = {}
 
 def play_sound(freq, duration):
+    if settings_store.is_muted():
+        return
     global game_state
     if freq > 0:
         buzzer.freq(freq)
