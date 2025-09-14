@@ -214,7 +214,7 @@ def run_server(mode, oled, upside_down):
     from oled_functions import update_oled
     oled.fill(0)
     update_oled(oled, "text", "Dashboard Mode" if mode == 'dashboard' else "Web Setup", upside_down, line=1)
-    update_oled(oled, "text", f"AP: {ssid}", upside_down, line=3)
+    update_oled(oled, "text", f"AP:{ssid}", upside_down, line=3)
     update_oled(oled, "text", f"Pass: {password}", upside_down, line=4)
     if mode == 'dashboard': update_oled(oled, "text", "(Menu to Exit)", upside_down, line=6)
     oled.show()
