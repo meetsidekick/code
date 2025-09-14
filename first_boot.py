@@ -59,29 +59,15 @@ def run_first_boot(oled, upside_down):
             selection = menu_items[selected_index]['key']
             
             if selection == "web":
-                success, user_name, sidekick_name = web_setup.start_web_setup(oled, upside_down)
-                if success:
-                    break
+                web_setup.start_web_setup(oled, upside_down)
+                # After setup is complete, the script will continue and reboot.
+                break
             elif selection == "skip":
                 user_name = "User"
                 sidekick_name = "Sidekick"
                 break
 
-    # Save settings
-    settings = settings_store._settings
-    settings['user_name'] = user_name
-    settings['sidekick_name'] = sidekick_name
-    settings['setup_completed'] = True
-    settings_store._save()
-
-    # Show welcome message
-    oled.fill(0)
-    oled_functions.update_oled(oled, "text", f"Hello {user_name},", upside_down, line=1)
-    oled_functions.update_oled(oled, "text", f"I'm {sidekick_name} v0!", upside_down, line=2)
-    oled_functions.update_oled(oled, "text", "Press OK to start!", upside_down, line=5)
-    oled.show()
-    
-    while ok_button.value() != 0:
-        sleep_ms(50)
-    while ok_button.value() == 0:
-        sleep_ms(50)
+    # After web setup returns, we reboot
+    print("DEBUG: Reached reboot point in first_boot.py.")
+    from machine import reset
+    reset()

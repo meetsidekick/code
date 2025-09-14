@@ -4,6 +4,7 @@
 import ujson as json
 import os
 import random
+import binascii
 
 _SETTINGS_FILE = "settings.json"
 

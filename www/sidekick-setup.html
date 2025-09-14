@@ -42,7 +42,7 @@
         <div class="screen" id="game-screen">
             <div id="setup-screen">
                 <div class="character-sprite" id="professor"><svg width="48" height="48" viewBox="0 0 48 48" style="image-rendering: pixelated;"><rect x="16" y="12" width="16" height="28" fill="#D4A574"/><rect x="16" y="8" width="16" height="4" fill="#2c1810"/><rect x="20" y="18" width="2" height="2" fill="#000"/><rect x="26" y="18" width="2" height="2" fill="#000"/><rect x="14" y="26" width="20" height="14" fill="#fff"/></svg></div>
-                <div class="dialog-box" id="dialog-box"><div class="dialog-text" id="dialog-text">Hello there! Welcome to the world of SIDEKICK!</div><div class="dialog-arrow" id="dialog-arrow">▼</div></div>
+                <div class="dialog-box" id="dialog-box"><div class="dialog-text" id="dialog-text"></div><div class="dialog-arrow" id="dialog-arrow">▼</div></div>
                 <div class="menu-options" id="menu-options" style="display: none;"></div>
             </div>
             <div id="dashboard-screen" class="hidden">
@@ -85,24 +85,19 @@
     <script>
         let gameState = { trainerName: 'TRAINER', sidekickName: 'SIDEKICK' };
         const dialogs = ["Hello! Welcome to SIDEKICK!", "My name is OAK!", "First, what is your name?"];
-        let currentDialog = 0, inputMode = false, menuMode = false, jar;
+        let currentDialog = 0, inputMode = false, menuMode = false, jar, dialogMode = false;
 
-        function initEditor() {
-            const editor = document.getElementById('editor');
-            const highlight = editor => { Prism.highlightElement(editor); };
-            jar = CodeJar(editor, highlight, { tab: '    ' });
-        }
-
+        function initEditor() { const editor = document.getElementById('editor'); const highlight = editor => { Prism.highlightElement(editor); }; jar = CodeJar(editor, highlight, { tab: '    ' }); }
         function showDialog(text, showArrow = true) { document.getElementById('dialog-text').textContent = text; document.getElementById('dialog-arrow').style.display = showArrow ? 'block' : 'none'; inputMode = false; menuMode = false; }
-        function showMenu(items) { const menuDiv = document.getElementById('menu-options'); menuDiv.innerHTML = ''; menuDiv.style.display = 'block'; menuMode = true; items.forEach(item => { const menuItem = document.createElement('div'); menuItem.className = 'menu-item'; menuItem.innerHTML = item.text; menuItem.onclick = item.action; menuDiv.appendChild(menuItem); }); }
-        function nextDialog() { currentDialog++; if (currentDialog < dialogs.length) { showDialog(dialogs[currentDialog]); if (currentDialog === 2) setTimeout(() => showNameInput(), 1000); } else { showConfirmation(); } }
-        function showNameInput() { showDialog("Please enter your name:", false); const menuDiv = document.getElementById('menu-options'); menuDiv.innerHTML = `<input type="text" class="input-field" id="trainer-name-input" placeholder="Enter your name..." maxlength="10"><div class="menu-item" onclick="submitName()">OK</div>`; menuDiv.style.display = 'block'; inputMode = true; setTimeout(() => document.getElementById('trainer-name-input').focus(), 100); }
+        function showMenu(items) { dialogMode = false; const menuDiv = document.getElementById('menu-options'); menuDiv.innerHTML = ''; menuDiv.style.display = 'block'; menuMode = true; items.forEach(item => { const menuItem = document.createElement('div'); menuItem.className = 'menu-item'; menuItem.innerHTML = item.text; menuItem.onclick = item.action; menuDiv.appendChild(menuItem); }); }
+        function nextDialog() { currentDialog++; if (currentDialog < dialogs.length) { showDialog(dialogs[currentDialog]); if (currentDialog === 2) setTimeout(() => showNameInput(), 1000); } else { dialogMode = false; showConfirmation(); } }
+        function showNameInput() { dialogMode = false; showDialog("Please enter your name:", false); const menuDiv = document.getElementById('menu-options'); menuDiv.innerHTML = `<input type="text" class="input-field" id="trainer-name-input" placeholder="Enter your name..." maxlength="10"><div class="menu-item" onclick="submitName()">OK</div>`; menuDiv.style.display = 'block'; inputMode = true; setTimeout(() => document.getElementById('trainer-name-input').focus(), 100); }
         function submitName() { gameState.trainerName = document.getElementById('trainer-name-input').value.trim().toUpperCase() || 'TRAINER'; document.getElementById('menu-options').style.display = 'none'; showDialog(`Right! So your name is ${gameState.trainerName}!`); setTimeout(() => { showDialog("Now, give your SIDEKICK a nickname?"); showMenu([{ text: "YES", action: showSidekickNaming }, { text: "NO", action: skipSidekickNaming }]); }, 2000); }
-        function showSidekickNaming() { document.getElementById('menu-options').style.display = 'none'; showDialog("What would you like to call it?", false); const menuDiv = document.getElementById('menu-options'); menuDiv.innerHTML = `<input type="text" class="input-field" id="sidekick-name-input" placeholder="Enter nickname..." maxlength="10"><div class="menu-item" onclick="submitSidekickName()">OK</div>`; menuDiv.style.display = 'block'; inputMode = true; setTimeout(() => document.getElementById('sidekick-name-input').focus(), 100); }
+        function showSidekickNaming() { showDialog("What would you like to call it?", false); const menuDiv = document.getElementById('menu-options'); menuDiv.innerHTML = `<input type="text" class="input-field" id="sidekick-name-input" placeholder="Enter nickname..." maxlength="10"><div class="menu-item" onclick="submitSidekickName()">OK</div>`; menuDiv.style.display = 'block'; inputMode = true; setTimeout(() => document.getElementById('sidekick-name-input').focus(), 100); }
         function submitSidekickName() { gameState.sidekickName = document.getElementById('sidekick-name-input').value.trim().toUpperCase() || 'SIDEKICK'; showConfirmation(); }
         function skipSidekickNaming() { gameState.sidekickName = 'SIDEKICK'; showConfirmation(); }
-        function showConfirmation() { document.getElementById('menu-options').style.display = 'none'; showDialog(`You: ${gameState.trainerName}\nSidekick: ${gameState.sidekickName}\n\nIs this correct?`); showMenu([{ text: "YES", action: sendDataAndFinish }, { text: "NO", action: () => { currentDialog = 1; nextDialog(); } }]); }
-        function sendDataAndFinish() { document.getElementById('menu-options').style.display = 'none'; showDialog(`${gameState.trainerName}! Your adventure is about to begin!`, false); fetch('/save', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: `user_name=${encodeURIComponent(gameState.trainerName)}&sidekick_name=${encodeURIComponent(gameState.sidekickName)}` }).then(() => setTimeout(() => showDashboardScreen(), 2000)); }
+        function showConfirmation() { showDialog(`You: ${gameState.trainerName}\nSidekick: ${gameState.sidekickName}\n\nIs this correct?`); showMenu([{ text: "YES", action: sendDataAndFinish }, { text: "NO", action: () => { currentDialog = 1; dialogMode = true; nextDialog(); } }]); }
+        function sendDataAndFinish() { showDialog("Saving your settings...", false); fetch('/save', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: `user_name=${encodeURIComponent(gameState.trainerName)}&sidekick_name=${encodeURIComponent(gameState.sidekickName)}` }).then(res => { if (res.ok) { showDialog("Reboot Device and Go to Settings(Menu Button) -> \"Start Dashboard\" and connect, and reload to continue.", false); } else { showDialog("Error: Could not save settings. Please reset the device.", false); } }); }
         function showDashboardScreen() { document.getElementById('setup-screen').style.display = 'none'; document.getElementById('dashboard-screen').classList.remove('hidden'); document.getElementById('trainer-name-display').textContent = gameState.trainerName; document.getElementById('sidekick-name-display').textContent = gameState.sidekickName; }
         function showDashboard() { document.getElementById('edit-screen').classList.add('hidden'); document.getElementById('apps-screen').classList.add('hidden'); document.getElementById('dashboard-screen').classList.remove('hidden'); }
         function showAppsScreen() { document.getElementById('dashboard-screen').classList.add('hidden'); document.getElementById('apps-screen').classList.remove('hidden'); renderApps(); }
@@ -112,7 +107,35 @@
         function editApp(filename, isReadOnly) { fetch(`/api/app/${filename}`).then(res => res.text()).then(code => { if (!jar) initEditor(); document.getElementById('editor-title').textContent = `Editing: ${filename}`; jar.updateCode(code || '# New File'); jar.readOnly(isReadOnly); document.getElementById('save-btn').style.display = isReadOnly ? 'none' : 'block'; document.getElementById('run-btn').style.display = isReadOnly ? 'none' : 'block'; document.getElementById('apps-screen').classList.add('hidden'); document.getElementById('editor-screen').style.display = 'block'; }); }
         function saveApp() { const filename = document.getElementById('editor-title').textContent.replace('Editing: ', ''); const code = jar.toString(); fetch('/api/apps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: filename, code: code }) }).then(res => { if (res.ok) closeEditor(); else alert("Failed to save app."); }); }
         function closeEditor() { document.getElementById('editor-screen').style.display = 'none'; showAppsScreen(); }
-        document.addEventListener('DOMContentLoaded', () => { if (window.location.hash === '#dashboard') { showDashboardScreen(); } else { document.getElementById('dialog-box').addEventListener('click', nextDialog); } });
+
+        function saveSettings() {
+            gameState.trainerName = document.getElementById('edit-trainer-name').value.trim().toUpperCase() || 'TRAINER';
+            gameState.sidekickName = document.getElementById('edit-sidekick-name').value.trim().toUpperCase() || 'SIDEKICK';
+            fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_name: gameState.trainerName, sidekick_name: gameState.sidekickName })
+            }).then(res => {
+                if (res.ok) {
+                    showDashboard();
+                } else {
+                    alert("Failed to save settings.");
+                }
+            });
+        }
+
+        function resetDevice() {
+            if (confirm('Reset SIDEKICK? All data will be lost!')) {
+                fetch('/api/reset', { method: 'POST' }).then(res => {
+                    if (res.ok) {
+                        // Device will reboot
+                    } else {
+                        alert("Failed to reset device.");
+                    }
+                });
+            }
+        }
+        document.addEventListener('DOMContentLoaded', () => { fetch('/api/status').then(res => res.json()).then(status => { gameState.trainerName = status.user_name; gameState.sidekickName = status.sidekick_name; if (status.setup_completed) { showDashboardScreen(); } else { document.getElementById('dialog-box').addEventListener('click', () => { if(dialogMode) nextDialog(); }); dialogMode = true; showDialog(dialogs[0]); } }); });
     </script>
 </body>
 </html>

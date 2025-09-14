@@ -12,9 +12,10 @@ from machine import Pin, reset
 from pin_values import code_debug_pin_value, code_ok_pin_value
 from menu import get_preserved_files
 
-# --- Globals ---
+# --- Globals --- #
 _server_mode = 'setup'
-_server_task = None
+_app_runner = None
+setup_complete_event = asyncio.Event()
 
 def get_random_hex():
     return binascii.hexlify(os.urandom(3)).decode('utf-8')
@@ -118,6 +119,22 @@ async def handle_request(reader, writer):
             with open('codejar.min.js', 'rb') as f:
                 await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\n\r\n')
                 await writer.awrite(f.read())
+        elif path == '/api/status' and method == 'GET':
+            status = {
+                "setup_completed": settings_store._settings.get('setup_completed', False),
+                "user_name": settings_store._settings.get('user_name', 'User'),
+                "sidekick_name": settings_store._settings.get('sidekick_name', 'Sidekick'),
+            }
+            await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n')
+            await writer.awrite(json.dumps(status).encode())
+        elif path == '/save' and method == 'POST':
+            data = {k: v for k, v in [pair.split('=', 1) for pair in body.decode().split('&') if '=' in pair]}
+            settings_store._settings['user_name'] = data.get('user_name', 'User')
+            settings_store._settings['sidekick_name'] = data.get('sidekick_name', 'Sidekick')
+            settings_store._settings['setup_completed'] = True
+            settings_store._save()
+            await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n')
+            await writer.awrite(json.dumps({'status': 'success'}).encode())
         elif path.startswith('/api/app/'):
             filename = path.split('/')[-1]
             if method == 'GET':
@@ -155,8 +172,10 @@ async def main_server_loop(ap):
         while True:
             if menu_button.value() == 0: break
             await asyncio.sleep_ms(100)
-    else:
-        await asyncio.Event().wait() # In setup, run until device is reset
+    else: # setup mode
+        print("DEBUG: main_server_loop waiting for setup_complete_event.")
+        await setup_complete_event.wait()
+        print("DEBUG: main_server_loop setup_complete_event received.") # In setup, run until device is reset
     server.close()
     await server.wait_closed()
     ap.active(False)
@@ -179,7 +198,14 @@ def run_server(mode, oled, upside_down):
     ap = network.WLAN(network.AP_IF)
     ap.active(True)
     password = settings_store.get_ap_password()
-    ssid = f"Sidekick_{settings_store.get_sidekick_id()}" if mode == 'dashboard' else f"Sidekick-{get_random_hex()[:6]}"
+    
+    if mode == 'dashboard':
+        sidekick_id = settings_store.get_sidekick_id()
+        ssid = f"Sidekick_{sidekick_id}"
+    else: # setup
+        sidekick_id = settings_store.get_sidekick_id()
+        ssid = f"Sidekick_{sidekick_id}"
+
     ap.config(essid=ssid, password=password, authmode=network.AUTH_WPA_WPA2_PSK)
     while not ap.active(): time.sleep(0.1)
 
