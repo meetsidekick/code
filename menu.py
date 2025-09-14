@@ -9,6 +9,9 @@ import oled_functions
 
 PRESERVE_CUSTOM_CODE = {'custom_code_Dice.py', 'custom_code_ButtonClick.py', 'custom_code_Pomodoro.py', 'custom_code_Stopwatch.py', 'custom_code_WinBLE-RickRoll.py', 'custom_code_DeviceTemp.py', 'custom_code_WifiScan.py', 'custom_code_BLEStageControl.py', 'custom_code_RhythmGame.py', 'custom_code_FlappyGame.py', 'custom_code_DinoGame.py', 'custom_code_SnakeGame.py', 'custom_code_Breakout.py'}  # Files never deleted by wipe
 
+def get_preserved_files():
+    return PRESERVE_CUSTOM_CODE
+
 # Helper to detect custom core availability
 def _custom_core_available():
     try:
@@ -221,7 +224,7 @@ def _render_menu(oled, items, idx, debug=False, upside_down=False):
             for line in reversed(lines):
                 _text(oled, line, 0, base_y, True)
                 base_y -= 10
-            _text(oled, "Menu", 0, 0, True)
+            _text(oled, "Settings", 0, 0, True)
             if up_indicator:
                 _text(oled, "^", 120, 0, True)
             if down_indicator:
@@ -280,6 +283,7 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
         {"name": "See IDs", "key": "sidekick_id", "type": "action"},
         {"name": "Run Custom Apps", "key": "exec", "type": "action"},
         {"name": "Wipe Extra Apps", "key": "wipe_custom", "type": "action"},
+        {"name": "Start Dashboard", "key": "start_dashboard", "type": "action"},
         {"name": "Reset Settings", "key": "reset", "type": "action"},
     ]
     if called_from_main:
@@ -328,6 +332,9 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
                         return 'exit'
                 elif item['key'] == 'wipe_custom':
                     _wipe_custom_code()
+                elif item['key'] == 'start_dashboard':
+                    import web_setup
+                    web_setup.start_dashboard_server(oled, upside_down)
                 elif item['key'] == 'reset':
                     settings_store.reset_settings()
                     import machine
@@ -346,6 +353,13 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
     _ensure_example()
     all_scripts = _list_custom_code()
     
+    try:
+        s = os.statvfs('/')
+        free_kb = (s[0] * s[3]) // 1024
+        storage_str = f'{free_kb}KB'
+    except Exception:
+        storage_str = ''
+
     deletable_scripts = [s for s in all_scripts if s not in PRESERVE_CUSTOM_CODE]
     preserved_scripts = [s for s in all_scripts if s in PRESERVE_CUSTOM_CODE]
     
@@ -362,7 +376,11 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
         try:
             if oled:
                 oled.fill(0)
-                _text(oled, 'Code Loader', 0, 0, upside_down)
+                _text(oled, 'Apps', 0, 0, upside_down)
+                if storage_str:
+                    storage_x = 128 - len(storage_str) * 8
+                    _text(oled, storage_str, storage_x, 0, upside_down)
+
                 for i, entry in enumerate(view):
                     global_index = start + i
                     marker = '>' if global_index == idx else ' '

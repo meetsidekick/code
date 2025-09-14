@@ -4,822 +4,115 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sidekick Lab</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-dracula.min.css" rel="stylesheet" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: monospace;
-            background: #000;
-            color: #fff;
-            overflow: hidden;
-        }
-
-        .gameboy {
-            width: 320px;
-            height: 288px;
-            margin: 20px auto;
-            background: #8b956d;
-            border: 8px solid #5a6b47;
-            border-radius: 12px;
-            position: relative;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
-        }
-
-        .screen {
-            width: 288px;
-            height: 224px;
-            background: #9bbc0f;
-            margin: 16px auto;
-            border: 4px solid #1e2124;
-            position: relative;
-            font-size: 12px;
-        }
-
-        .dialog-box {
-            position: absolute;
-            bottom: 8px;
-            left: 8px;
-            right: 8px;
-            background: #fff;
-            color: #000;
-            border: 2px solid #000;
-            padding: 12px;
-            min-height: 60px;
-            cursor: pointer;
-        }
-
-        .dialog-text {
-            line-height: 1.2;
-            margin-bottom: 8px;
-        }
-
-        .dialog-arrow {
-            position: absolute;
-            bottom: 4px;
-            right: 8px;
-            animation: blink 1s infinite;
-        }
-
-        .professor {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            width: 48px;
-            height: 48px;
-            background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAAdgAAAHYBTnsmCAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAANhSURBVGiB7ZpNaBNBFMefJE2a1lqrtQhaqwh6ELx48eLBgwcPHjx48OLFiy9evHjw4sWDBy9evHjx4sWLBy9evHjx4sWLBy9ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw==');
-            background-size: contain;
-            background-repeat: no-repeat;
-            image-rendering: pixelated;
-        }
-
-        .character-sprite {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            width: 48px;
-            height: 48px;
-            background: #000;
-            border: 2px solid #333;
-            image-rendering: pixelated;
-        }
-
-        .character-sprite::before {
-            content: '';
-            position: absolute;
-            top: 4px;
-            left: 8px;
-            width: 32px;
-            height: 32px;
-            background: #1a1a2e;
-            border: 1px solid #4a90e2;
-        }
-
-        .character-sprite::after {
-            content: '';
-            position: absolute;
-            top: 8px;
-            left: 12px;
-            width: 24px;
-            height: 24px;
-            background: #654321;
-            border: 1px solid #333;
-        }
-
-        .menu-options {
-            position: absolute;
-            bottom: 80px;
-            left: 16px;
-            right: 16px;
-        }
-
-        .menu-item {
-            background: #fff;
-            color: #000;
-            border: 2px solid #000;
-            padding: 8px 12px;
-            margin-bottom: 4px;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .menu-item:hover, .menu-item.selected {
-            background: #000;
-            color: #fff;
-        }
-
-        .input-field {
-            background: #fff;
-            color: #000;
-            border: 2px solid #000;
-            padding: 8px;
-            width: 100%;
-            font-family: monospace;
-            font-size: 12px;
-            margin: 8px 0;
-        }
-
-        .wifi-status {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 10px;
-        }
-
-        .wifi-bars {
-            display: flex;
-            gap: 2px;
-            align-items: flex-end;
-        }
-
-        .wifi-bar {
-            width: 3px;
-            background: #000;
-        }
-
-        .wifi-bar:nth-child(1) { height: 4px; }
-        .wifi-bar:nth-child(2) { height: 6px; }
-        .wifi-bar:nth-child(3) { height: 8px; }
-
-        .connecting .wifi-bar {
-            animation: pulse 0.5s infinite alternate;
-        }
-
-        .connected .wifi-bar {
-            background: #0f380f;
-        }
-
-        .dashboard-grid {
-            position: absolute;
-            top: 100px;
-            left: 16px;
-            right: 16px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
-
-        .dashboard-card {
-            background: #fff;
-            color: #000;
-            border: 2px solid #000;
-            padding: 16px 8px;
-            text-align: center;
-            cursor: pointer;
-            font-size: 10px;
-            text-transform: uppercase;
-        }
-
-        .dashboard-card:hover {
-            background: #000;
-            color: #fff;
-        }
-
-        .dashboard-card.full-width {
-            grid-column: span 2;
-        }
-
-        .app-list {
-            position: absolute;
-            top: 60px;
-            left: 16px;
-            right: 16px;
-            bottom: 80px;
-            overflow-y: auto;
-            background: #fff;
-            color: #000;
-            border: 2px solid #000;
-            padding: 8px;
-        }
-
-        .app-item {
-            padding: 4px;
-            border-bottom: 1px solid #ccc;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 10px;
-        }
-
-        .app-item:hover {
-            background: #f0f0f0;
-        }
-
-        .app-actions {
-            display: flex;
-            gap: 4px;
-        }
-
-        .mini-btn {
-            padding: 2px 6px;
-            font-size: 8px;
-            background: #000;
-            color: #fff;
-            border: 1px solid #000;
-            cursor: pointer;
-        }
-
-        .mini-btn:hover {
-            background: #333;
-        }
-
-        .mini-btn.danger {
-            background: #800;
-        }
-
-        .editor-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #9bbc0f;
-            display: none;
-        }
-
-        .editor-header {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            right: 8px;
-            background: #fff;
-            color: #000;
-            border: 2px solid #000;
-            padding: 4px;
-            font-size: 10px;
-            text-align: center;
-        }
-
-        .editor-textarea {
-            position: absolute;
-            top: 40px;
-            left: 8px;
-            right: 8px;
-            bottom: 40px;
-            background: #fff;
-            color: #000;
-            border: 2px solid #000;
-            padding: 4px;
-            font-family: monospace;
-            font-size: 8px;
-            resize: none;
-            outline: none;
-        }
-
-        .editor-buttons {
-            position: absolute;
-            bottom: 8px;
-            left: 8px;
-            right: 8px;
-            display: flex;
-            gap: 4px;
-        }
-
-        .editor-btn {
-            flex: 1;
-            padding: 8px;
-            background: #fff;
-            color: #000;
-            border: 2px solid #000;
-            cursor: pointer;
-            font-size: 10px;
-        }
-
-        .editor-btn:hover {
-            background: #000;
-            color: #fff;
-        }
-
-        .file-input {
-            position: absolute;
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .back-btn {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            background: #fff;
-            color: #000;
-            border: 2px solid #000;
-            padding: 4px 8px;
-            font-size: 8px;
-            cursor: pointer;
-        }
-
-        .back-btn:hover {
-            background: #000;
-            color: #fff;
-        }
-
+        body { font-family: monospace; background: #000; color: #fff; overflow: hidden; }
+        .gamescreen { width: 320px; height: 288px; margin: 20px auto; background: #8b956d; border: 8px solid #5a6b47; border-radius: 12px; position: relative; box-shadow: inset 0 0 20px rgba(0,0,0,0.3); }
+        .screen { width: 288px; height: 224px; background: #9bbc0f; margin: 16px auto; border: 4px solid #1e2124; position: relative; font-size: 12px; }
+        .dialog-box { position: absolute; bottom: 8px; left: 8px; right: 8px; background: #fff; color: #000; border: 2px solid #000; padding: 12px; min-height: 60px; cursor: pointer; }
+        .dialog-text { line-height: 1.2; margin-bottom: 8px; }
+        .dialog-arrow { position: absolute; bottom: 4px; right: 8px; animation: blink 1s infinite; }
+        .character-sprite { position: absolute; top: 20px; left: 20px; width: 48px; height: 48px; image-rendering: pixelated; }
+        .menu-options { position: absolute; bottom: 80px; left: 16px; right: 16px; }
+        .menu-item { background: #fff; color: #000; border: 2px solid #000; padding: 8px 12px; margin-bottom: 4px; cursor: pointer; position: relative; }
+        .menu-item:hover, .menu-item.selected { background: #000; color: #fff; }
+        .input-field { background: #fff; color: #000; border: 2px solid #000; padding: 8px; width: 100%; font-family: monospace; font-size: 12px; margin: 8px 0; }
+        .dashboard-grid { position: absolute; top: 100px; left: 16px; right: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .dashboard-card { background: #fff; color: #000; border: 2px solid #000; padding: 16px 8px; text-align: center; cursor: pointer; font-size: 10px; text-transform: uppercase; }
+        .dashboard-card:hover { background: #000; color: #fff; }
+        .dashboard-card.full-width { grid-column: span 2; }
+        .app-list{position:absolute;top:80px;left:16px;right:16px;bottom:40px;overflow-y:auto;background:#fff;color:#000;border:2px solid #000;padding:8px}
+        .app-item{padding:4px;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;align-items:center;font-size:10px}
+        .app-item:hover{background:#f0f0f0}
+        .app-actions{display:flex;gap:4px}
+        .mini-btn{padding:2px 6px;font-size:8px;background:#000;color:#fff;border:1px solid #000;cursor:pointer}
+        .editor-screen{position:absolute;top:0;left:0;right:0;bottom:0;background:#9bbc0f;display:none}
+        .editor-header{position:absolute;top:8px;left:8px;right:8px;background:#fff;color:#000;border:2px solid #000;padding:4px;font-size:10px;text-align:center}
+        .codejar-editor { position: absolute; top: 40px; left: 8px; right: 8px; bottom: 40px; background: #282a36; color: #f8f8f2; border: 2px solid #000; font-family: monospace; font-size: 10px; resize: none; outline: none; overflow: auto; }
+        .editor-buttons{position:absolute;bottom:8px;left:8px;right:8px;display:flex;gap:4px}
+        .editor-btn{flex:1;padding:8px;background:#fff;color:#000;border:2px solid #000;cursor:pointer;font-size:10px}
+        .back-btn{position:absolute;top:8px;left:8px;background:#fff;color:#000;border:2px solid #000;padding:4px 8px;font-size:8px;cursor:pointer}
         .hidden { display: none !important; }
-
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0; }
-        }
-
-        @keyframes pulse {
-            0% { opacity: 0.3; }
-            100% { opacity: 1; }
-        }
-
-        /* Syntax highlighting for simple Python */
-        .keyword { color: #0066cc; font-weight: bold; }
-        .string { color: #008800; }
-        .comment { color: #666; font-style: italic; }
-        .function { color: #cc6600; }
+        @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
     </style>
 </head>
 <body>
-    <div class="gameboy">
+    <div class="gamescreen">
         <div class="screen" id="game-screen">
-            <!-- Setup Screen -->
             <div id="setup-screen">
-                <div class="character-sprite" id="professor">
-                    <svg width="48" height="48" viewBox="0 0 48 48" style="image-rendering: pixelated;">
-                        <!-- Shadow -->
-                        <ellipse cx="24" cy="42" rx="16" ry="4" fill="#0f380f" opacity="0.3"/>
-                        
-                        <!-- Body -->
-                        <rect x="16" y="28" width="16" height="12" fill="#1a1a2e"/>
-                        <rect x="18" y="30" width="12" height="8" fill="#4a90e2"/>
-                        
-                        <!-- Head -->
-                        <rect x="18" y="12" width="12" height="16" fill="#d4a574"/>
-                        
-                        <!-- Hair -->
-                        <rect x="16" y="12" width="16" height="4" fill="#2c1810"/>
-                        <rect x="18" y="8" width="12" height="4" fill="#2c1810"/>
-                        
-                        <!-- Eyes -->
-                        <rect x="20" y="18" width="2" height="2" fill="#000"/>
-                        <rect x="26" y="18" width="2" height="2" fill="#000"/>
-                        
-                        <!-- Mouth -->
-                        <rect x="22" y="22" width="4" height="1" fill="#000"/>
-                        
-                        <!-- Lab coat -->
-                        <rect x="14" y="26" width="20" height="2" fill="#fff"/>
-                        <rect x="16" y="28" width="2" height="8" fill="#fff"/>
-                        <rect x="30" y="28" width="2" height="8" fill="#fff"/>
-                    </svg>
-                </div>
-                
-                <div class="wifi-status" id="wifi-status">
-                    <span>WiFi</span>
-                    <div class="wifi-bars">
-                        <div class="wifi-bar"></div>
-                        <div class="wifi-bar"></div>
-                        <div class="wifi-bar"></div>
-                    </div>
-                </div>
-                
-                <div class="dialog-box" id="dialog-box">
-                    <div class="dialog-text" id="dialog-text">
-                        Hello there! Welcome to the world of SIDEKICK! My name is OAK! People call me the SIDEKICK PROF!
-                    </div>
-                    <div class="dialog-arrow" id="dialog-arrow">▼</div>
-                </div>
-
-                <div class="menu-options" id="menu-options" style="display: none;">
-                    <!-- Dynamic menu items will appear here -->
-                </div>
+                <div class="character-sprite" id="professor"><svg width="48" height="48" viewBox="0 0 48 48" style="image-rendering: pixelated;"><rect x="16" y="12" width="16" height="28" fill="#D4A574"/><rect x="16" y="8" width="16" height="4" fill="#2c1810"/><rect x="20" y="18" width="2" height="2" fill="#000"/><rect x="26" y="18" width="2" height="2" fill="#000"/><rect x="14" y="26" width="20" height="14" fill="#fff"/></svg></div>
+                <div class="dialog-box" id="dialog-box"><div class="dialog-text" id="dialog-text">Hello there! Welcome to the world of SIDEKICK!</div><div class="dialog-arrow" id="dialog-arrow">▼</div></div>
+                <div class="menu-options" id="menu-options" style="display: none;"></div>
             </div>
-
-            <!-- Dashboard Screen -->
             <div id="dashboard-screen" class="hidden">
-                <div class="wifi-status" id="dashboard-wifi">
-                    <span>WiFi</span>
-                    <div class="wifi-bars">
-                        <div class="wifi-bar"></div>
-                        <div class="wifi-bar"></div>
-                        <div class="wifi-bar"></div>
-                    </div>
-                </div>
-                
-                <div class="dialog-box">
-                    <div class="dialog-text">
-                        Welcome back, <span id="trainer-name-display">TRAINER</span>! <span id="sidekick-name-display">SIDEKICK</span> is ready for action!
-                    </div>
-                </div>
-
+                <div class="dialog-box"><div class="dialog-text">Welcome back, <span id="trainer-name-display"></span>! <span id="sidekick-name-display"></span> is ready!</div></div>
                 <div class="dashboard-grid">
-                    <div class="dashboard-card" onclick="showEditScreen()">⚙️<br>Edit</div>
+                    <div class="dashboard-card" onclick="showEditScreen()">⚙️<br>Settings</div>
                     <div class="dashboard-card" onclick="resetDevice()">🔄<br>Reset</div>
                     <div class="dashboard-card full-width" onclick="showAppsScreen()">📱 Apps</div>
                 </div>
             </div>
-
-            <!-- Edit Screen -->
             <div id="edit-screen" class="hidden">
                 <button class="back-btn" onclick="showDashboard()">← BACK</button>
-                
-                <div class="dialog-box">
-                    <div class="dialog-text">Edit your settings:</div>
-                </div>
-                
+                <div class="dialog-box"><div class="dialog-text">Edit your settings:</div></div>
                 <div style="position: absolute; top: 80px; left: 16px; right: 16px;">
-                    <div style="margin-bottom: 8px;">
-                        <div style="font-size: 10px; margin-bottom: 2px;">Your Name:</div>
-                        <input type="text" class="input-field" id="edit-trainer-name">
-                    </div>
-                    <div style="margin-bottom: 16px;">
-                        <div style="font-size: 10px; margin-bottom: 2px;">Sidekick Name:</div>
-                        <input type="text" class="input-field" id="edit-sidekick-name">
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="menu-item" style="flex: 1;" onclick="saveSettings()">SAVE</button>
-                        <button class="menu-item" style="flex: 1;" onclick="showDashboard()">BACK</button>
-                    </div>
+                    <input type="text" class="input-field" id="edit-trainer-name" placeholder="Your Name">
+                    <input type="text" class="input-field" id="edit-sidekick-name" placeholder="Sidekick Name">
+                    <button class="menu-item" style="width:100%" onclick="saveSettings()">SAVE</button>
                 </div>
             </div>
-
-            <!-- Apps Screen -->
             <div id="apps-screen" class="hidden">
                 <button class="back-btn" onclick="showDashboard()">← BACK</button>
-                
-                <div class="dialog-box">
-                    <div class="dialog-text">Code Dashboard - Manage Python apps</div>
-                </div>
-
-                <div style="position: absolute; top: 80px; left: 16px; right: 16px; display: flex; gap: 4px;">
-                    <button class="menu-item" style="flex: 1; font-size: 8px;" onclick="createNewApp()">+ NEW</button>
-                    <button class="menu-item" style="flex: 1; font-size: 8px;" onclick="uploadApp()">⬆ UPLOAD</button>
-                </div>
-
-                <div class="app-list" id="app-list-container">
-                    <!-- Apps will be listed here -->
-                </div>
-
-                <input type="file" id="file-upload" class="file-input" accept=".py" onchange="handleFileUpload(event)">
+                <div class="dialog-box"><div class="dialog-text">Code Dashboard</div></div>
+                <div style="position: absolute; top: 80px; left: 16px; right: 16px; display: flex; gap: 4px;"><button class="menu-item" style="flex: 1; font-size: 8px;" onclick="createNewApp()">+ NEW</button></div>
+                <div class="app-list" id="app-list-container"></div>
             </div>
-
-            <!-- Editor Screen -->
             <div class="editor-screen" id="editor-screen">
-                <button class="back-btn" onclick="closeEditor()">← BACK</button>
-                <div class="editor-header" id="editor-title">Editing: custom_code_new.py</div>
-                <textarea class="editor-textarea" id="code-editor" placeholder="# Your Python code here..."></textarea>
+                <div class="editor-header" id="editor-title"></div>
+                <div id="editor" class="codejar-editor"></div>
                 <div class="editor-buttons">
-                    <button class="editor-btn" onclick="saveApp()">SAVE</button>
-                    <button class="editor-btn" onclick="closeEditor()">CANCEL</button>
+                    <button id="save-btn" class="editor-btn" onclick="saveApp()">SAVE</button>
+                    <button id="run-btn" class="editor-btn" onclick="runApp()">RUN</button>
+                    <button class="editor-btn" onclick="closeEditor()">BACK</button>
                 </div>
             </div>
         </div>
     </div>
-
+    <script src="/codejar.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
     <script>
-        // Game state
-        let gameState = {
-            step: 0,
-            trainerName: '',
-            sidekickName: 'SIDEKICK V0',
-            wifiConnected: false,
-            apps: [
-                { name: 'custom_code_hello', code: '# Hello World\nprint("Hello from Sidekick!")' },
-                { name: 'custom_code_sensor', code: '# Sensor Reader\n# TODO: Add sensor code' }
-            ],
-            currentApp: null,
-            menuIndex: 0
-        };
+        let gameState = { trainerName: 'TRAINER', sidekickName: 'SIDEKICK' };
+        const dialogs = ["Hello! Welcome to SIDEKICK!", "My name is OAK!", "First, what is your name?"];
+        let currentDialog = 0, inputMode = false, menuMode = false, jar;
 
-        const dialogs = [
-            "Hello there! Welcome to the world of SIDEKICK! My name is OAK! People call me the SIDEKICK PROF!",
-            "This world is inhabited by creatures called SIDEKICK! For some people, SIDEKICK are pets. Others use them for work. Myself... I study SIDEKICK as a profession.",
-            "First, what is your name?",
-        ];
-
-        let currentDialog = 0;
-        let inputMode = false;
-        let menuMode = false;
-
-        function showDialog(text, showArrow = true) {
-            document.getElementById('dialog-text').textContent = text;
-            document.getElementById('dialog-arrow').style.display = showArrow ? 'block' : 'none';
-            inputMode = false;
-            menuMode = false;
+        function initEditor() {
+            const editor = document.getElementById('editor');
+            const highlight = editor => { Prism.highlightElement(editor); };
+            jar = CodeJar(editor, highlight, { tab: '    ' });
         }
 
-        function showMenu(items) {
-            const menuDiv = document.getElementById('menu-options');
-            menuDiv.innerHTML = '';
-            menuDiv.style.display = 'block';
-            menuMode = true;
-            gameState.menuIndex = 0;
-            
-            items.forEach((item, index) => {
-                const menuItem = document.createElement('div');
-                menuItem.className = 'menu-item';
-                if (index === 0) menuItem.classList.add('selected');
-                menuItem.innerHTML = `${index === 0 ? '► ' : '  '}${item.text}`;
-                menuItem.onclick = item.action;
-                menuDiv.appendChild(menuItem);
-            });
-        }
-
-        function updateMenuSelection() {
-            const menuItems = document.querySelectorAll('#menu-options .menu-item');
-            menuItems.forEach((item, index) => {
-                if (index === gameState.menuIndex) {
-                    item.classList.add('selected');
-                    item.innerHTML = `► ${item.textContent.replace(/^[►\s]+/, '')}`;
-                } else {
-                    item.classList.remove('selected');
-                    item.innerHTML = `  ${item.textContent.replace(/^[►\s]+/, '')}`;
-                }
-            });
-        }
-
-        function selectMenuItem() {
-            const menuItems = document.querySelectorAll('#menu-options .menu-item');
-            if (menuItems[gameState.menuIndex]) {
-                menuItems[gameState.menuIndex].click();
-            }
-        }
-
-        function hideMenu() {
-            document.getElementById('menu-options').style.display = 'none';
-            menuMode = false;
-        }
-
-        function nextDialog() {
-            currentDialog++;
-            if (currentDialog < dialogs.length) {
-                showDialog(dialogs[currentDialog]);
-                if (currentDialog === 2) {
-                    setTimeout(() => {
-                        showNameInput();
-                    }, 1000);
-                }
-            }
-        }
-
-        function showNameInput() {
-            hideMenu();
-            showDialog("Please enter your name:", false);
-            const menuDiv = document.getElementById('menu-options');
-            menuDiv.innerHTML = `
-                <input type="text" class="input-field" id="trainer-name-input" placeholder="Enter your name..." maxlength="10">
-                <div class="menu-item selected">► OK</div>
-            `;
-            menuDiv.style.display = 'block';
-            inputMode = true;
-            setTimeout(() => document.getElementById('trainer-name-input').focus(), 100);
-        }
-
-        function submitName() {
-            const name = document.getElementById('trainer-name-input').value.toUpperCase() || 'TRAINER';
-            gameState.trainerName = name;
-            hideMenu();
-            showDialog(`Right! So your name is ${name}!`);
-            setTimeout(() => {
-                showDialog("Now, would you like to give your SIDEKICK a nickname?");
-                showMenu([
-                    { text: "YES", action: showSidekickNaming },
-                    { text: "NO", action: skipSidekickNaming }
-                ]);
-            }, 2000);
-        }
-
-        function showSidekickNaming() {
-            hideMenu();
-            showDialog("What would you like to call your SIDEKICK?", false);
-            const menuDiv = document.getElementById('menu-options');
-            menuDiv.innerHTML = `
-                <input type="text" class="input-field" id="sidekick-name-input" placeholder="Enter nickname..." maxlength="10">
-                <div class="menu-item selected">► OK</div>
-            `;
-            menuDiv.style.display = 'block';
-            inputMode = true;
-            setTimeout(() => document.getElementById('sidekick-name-input').focus(), 100);
-        }
-
-        function submitSidekickName() {
-            const name = document.getElementById('sidekick-name-input').value.toUpperCase() || 'SIDEKICK V0';
-            gameState.sidekickName = name;
-            continueToWifi();
-        }
-
-        function skipSidekickNaming() {
-            gameState.sidekickName = 'SIDEKICK V0';
-            continueToWifi();
-        }
-
-        function continueToWifi() {
-            hideMenu();
-            showDialog(`${gameState.sidekickName} is a great name! Now, would you like to connect to WiFi?`);
-            setTimeout(() => {
-                showMenu([
-                    { text: "YES", action: connectWifi },
-                    { text: "NO", action: skipWifi }
-                ]);
-            }, 1500);
-        }
-
-        function connectWifi() {
-            hideMenu();
-            showDialog("Connecting to WiFi...", false);
-            document.getElementById('wifi-status').classList.add('connecting');
-            
-            setTimeout(() => {
-                gameState.wifiConnected = true;
-                document.getElementById('wifi-status').classList.remove('connecting');
-                document.getElementById('wifi-status').classList.add('connected');
-                showDialog("WiFi connected successfully!");
-                setTimeout(finishSetup, 2000);
-            }, 3000);
-        }
-
-        function skipWifi() {
-            hideMenu();
-            showDialog("No problem! You can connect later from settings.");
-            setTimeout(finishSetup, 2000);
-        }
-
-        function finishSetup() {
-            hideMenu();
-            showDialog(`${gameState.trainerName}! Your SIDEKICK adventure is about to begin!`);
-            setTimeout(() => {
-                document.getElementById('setup-screen').style.display = 'none';
-                document.getElementById('dashboard-screen').classList.remove('hidden');
-                updateDashboard();
-            }, 3000);
-        }
-
-        function updateDashboard() {
-            document.getElementById('trainer-name-display').textContent = gameState.trainerName;
-            document.getElementById('sidekick-name-display').textContent = gameState.sidekickName;
-            
-            const dashboardWifi = document.getElementById('dashboard-wifi');
-            if (gameState.wifiConnected) {
-                dashboardWifi.classList.add('connected');
-            }
-        }
-
-        function showDashboard() {
-            document.getElementById('edit-screen').classList.add('hidden');
-            document.getElementById('apps-screen').classList.add('hidden');
-            document.getElementById('dashboard-screen').classList.remove('hidden');
-        }
-
-        function showEditScreen() {
-            document.getElementById('dashboard-screen').classList.add('hidden');
-            document.getElementById('edit-screen').classList.remove('hidden');
-            document.getElementById('edit-trainer-name').value = gameState.trainerName;
-            document.getElementById('edit-sidekick-name').value = gameState.sidekickName;
-        }
-
-        function saveSettings() {
-            gameState.trainerName = document.getElementById('edit-trainer-name').value.toUpperCase() || 'TRAINER';
-            gameState.sidekickName = document.getElementById('edit-sidekick-name').value.toUpperCase() || 'SIDEKICK V0';
-            updateDashboard();
-            showDashboard();
-        }
-
-        function resetDevice() {
-            if (confirm('Reset SIDEKICK? All data will be lost!')) {
-                location.reload();
-            }
-        }
-
-        function showAppsScreen() {
-            document.getElementById('dashboard-screen').classList.add('hidden');
-            document.getElementById('apps-screen').classList.remove('hidden');
-            renderApps();
-        }
-
-        function renderApps() {
-            const container = document.getElementById('app-list-container');
-            container.innerHTML = '';
-            
-            gameState.apps.forEach((app, index) => {
-                const appDiv = document.createElement('div');
-                appDiv.className = 'app-item';
-                appDiv.innerHTML = `
-                    <span>${app.name}.py</span>
-                    <div class="app-actions">
-                        <button class="mini-btn" onclick="editApp(${index})">EDIT</button>
-                        <button class="mini-btn danger" onclick="deleteApp(${index})">DEL</button>
-                    </div>
-                `;
-                container.appendChild(appDiv);
-            });
-        }
-
-        function createNewApp() {
-            gameState.currentApp = null;
-            document.getElementById('editor-title').textContent = 'Creating: custom_code_new.py';
-            document.getElementById('code-editor').value = '# New Sidekick App\ndef main():\n    print("Hello from Sidekick!")\n\nif __name__ == "__main__":\n    main()';
-            document.getElementById('apps-screen').classList.add('hidden');
-            document.getElementById('editor-screen').style.display = 'block';
-            applySyntaxHighlighting();
-        }
-
-        function editApp(index) {
-            gameState.currentApp = index;
-            const app = gameState.apps[index];
-            document.getElementById('editor-title').textContent = `Editing: ${app.name}.py`;
-            document.getElementById('code-editor').value = app.code;
-            document.getElementById('apps-screen').classList.add('hidden');
-            document.getElementById('editor-screen').style.display = 'block';
-            applySyntaxHighlighting();
-        }
-
-        function uploadApp() {
-            document.getElementById('file-upload').click();
-        }
-
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (file && file.name.endsWith('.py')) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const code = e.target.result;
-                    const name = file.name.replace('.py', '').replace(/[^a-zA-Z0-9_]/g, '_');
-                    gameState.apps.push({ name: name, code: code });
-                    // TODO: Integrate into code - save uploaded file
-                    renderApps();
-                };
-                reader.readAsText(file);
-            }
-        }
-
-        function saveApp() {
-            const code = document.getElementById('code-editor').value;
-            let title = prompt('App name (without .py):');
-            if (!title) return;
-            title = title.replace(/[^a-zA-Z0-9_]/g, '_');
-            
-            if (gameState.currentApp !== null) {
-                gameState.apps[gameState.currentApp].code = code;
-                gameState.apps[gameState.currentApp].name = title;
-            } else {
-                gameState.apps.push({ name: title, code: code });
-            }
-            
-            // TODO: Integrate into code - save app to device
-            closeEditor();
-        }
-
-        function deleteApp(index) {
-            if (confirm('Delete this app?')) {
-                gameState.apps.splice(index, 1);
-                // TODO: Integrate into code - delete app from device
-                renderApps();
-            }
-        }
-
-        function closeEditor() {
-            document.getElementById('editor-screen').style.display = 'none';
-            document.getElementById('apps-screen').classList.remove('hidden');
-            renderApps();
-        }
-
-        // Simple syntax highlighting
-        function applySyntaxHighlighting() {
-            const editor = document.getElementById('code-editor');
-            editor.addEventListener('input', () => {
-                // Basic highlighting would go here if we had more space
-                // For now, just ensure proper formatting
-            });
-        }
-
-        // Keyboard controls
-        document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            
-            if (e.code === 'Enter' || e.code === 'Space') {
-                e.preventDefault();
-                
-                if (inputMode) {
-                    if (document.getElementById('trainer-name-input')) {
-                        submitName();
-                    } else if (document.getElementById('sidekick-name-input')) {
-                        submitSidekickName();
-                    }
-                } else if (menuMode) {
-                    selectMenuItem();
+        function showDialog(text, showArrow = true) { document.getElementById('dialog-text').textContent = text; document.getElementById('dialog-arrow').style.display = showArrow ? 'block' : 'none'; inputMode = false; menuMode = false; }
+        function showMenu(items) { const menuDiv = document.getElementById('menu-options'); menuDiv.innerHTML = ''; menuDiv.style.display = 'block'; menuMode = true; items.forEach(item => { const menuItem = document.createElement('div'); menuItem.className = 'menu-item'; menuItem.innerHTML = item.text; menuItem.onclick = item.action; menuDiv.appendChild(menuItem); }); }
+        function nextDialog() { currentDialog++; if (currentDialog < dialogs.length) { showDialog(dialogs[currentDialog]); if (currentDialog === 2) setTimeout(() => showNameInput(), 1000); } else { showConfirmation(); } }
+        function showNameInput() { showDialog("Please enter your name:", false); const menuDiv = document.getElementById('menu-options'); menuDiv.innerHTML = `<input type="text" class="input-field" id="trainer-name-input" placeholder="Enter your name..." maxlength="10"><div class="menu-item" onclick="submitName()">OK</div>`; menuDiv.style.display = 'block'; inputMode = true; setTimeout(() => document.getElementById('trainer-name-input').focus(), 100); }
+        function submitName() { gameState.trainerName = document.getElementById('trainer-name-input').value.trim().toUpperCase() || 'TRAINER'; document.getElementById('menu-options').style.display = 'none'; showDialog(`Right! So your name is ${gameState.trainerName}!`); setTimeout(() => { showDialog("Now, give your SIDEKICK a nickname?"); showMenu([{ text: "YES", action: showSidekickNaming }, { text: "NO", action: skipSidekickNaming }]); }, 2000); }
+        function showSidekickNaming() { document.getElementById('menu-options').style.display = 'none'; showDialog("What would you like to call it?", false); const menuDiv = document.getElementById('menu-options'); menuDiv.innerHTML = `<input type="text" class="input-field" id="sidekick-name-input" placeholder="Enter nickname..." maxlength="10"><div class="menu-item" onclick="submitSidekickName()">OK</div>`; menuDiv.style.display = 'block'; inputMode = true; setTimeout(() => document.getElementById('sidekick-name-input').focus(), 100); }
+        function submitSidekickName() { gameState.sidekickName = document.getElementById('sidekick-name-input').value.trim().toUpperCase() || 'SIDEKICK'; showConfirmation(); }
+        function skipSidekickNaming() { gameState.sidekickName = 'SIDEKICK'; showConfirmation(); }
+        function showConfirmation() { document.getElementById('menu-options').style.display = 'none'; showDialog(`You: ${gameState.trainerName}\nSidekick: ${gameState.sidekickName}\n\nIs this correct?`); showMenu([{ text: "YES", action: sendDataAndFinish }, { text: "NO", action: () => { currentDialog = 1; nextDialog(); } }]); }
+        function sendDataAndFinish() { document.getElementById('menu-options').style.display = 'none'; showDialog(`${gameState.trainerName}! Your adventure is about to begin!`, false); fetch('/save', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: `user_name=${encodeURIComponent(gameState.trainerName)}&sidekick_name=${encodeURIComponent(gameState.sidekickName)}` }).then(() => setTimeout(() => showDashboardScreen(), 2000)); }
+        function showDashboardScreen() { document.getElementById('setup-screen').style.display = 'none'; document.getElementById('dashboard-screen').classList.remove('hidden'); document.getElementById('trainer-name-display').textContent = gameState.trainerName; document.getElementById('sidekick-name-display').textContent = gameState.sidekickName; }
+        function showDashboard() { document.getElementById('edit-screen').classList.add('hidden'); document.getElementById('apps-screen').classList.add('hidden'); document.getElementById('dashboard-screen').classList.remove('hidden'); }
+        function showAppsScreen() { document.getElementById('dashboard-screen').classList.add('hidden'); document.getElementById('apps-screen').classList.remove('hidden'); renderApps(); }
+        function renderApps() { const container = document.getElementById('app-list-container'); container.innerHTML = 'Loading...'; fetch('/api/apps').then(res => res.json()).then(apps => { container.innerHTML = ''; apps.forEach(app => { const appDiv = document.createElement('div'); appDiv.className = 'app-item'; let buttons = app.preserved ? `<button class="mini-btn" onclick="editApp('${app.name}', true)">VIEW</button>` : `<button class="mini-btn" onclick="editApp('${app.name}', false)">EDIT</button><button class="mini-btn danger" onclick="deleteApp('${app.name}')">DEL</button>`; appDiv.innerHTML = `<span>${app.name}</span><div class="app-actions">${buttons}</div>`; container.appendChild(appDiv); }); }); }
+        function createNewApp() { const filename = prompt("Enter new app name:", "custom_code_new.py"); if (filename) { editApp(filename, false); } }
+        function deleteApp(filename) { if (confirm(`Delete ${filename}?`)) { fetch(`/api/app/${filename}`, { method: 'DELETE' }).then(() => renderApps()); } }
+        function editApp(filename, isReadOnly) { fetch(`/api/app/${filename}`).then(res => res.text()).then(code => { if (!jar) initEditor(); document.getElementById('editor-title').textContent = `Editing: ${filename}`; jar.updateCode(code || '# New File'); jar.readOnly(isReadOnly); document.getElementById('save-btn').style.display = isReadOnly ? 'none' : 'block'; document.getElementById('run-btn').style.display = isReadOnly ? 'none' : 'block'; document.getElementById('apps-screen').classList.add('hidden'); document.getElementById('editor-screen').style.display = 'block'; }); }
+        function saveApp() { const filename = document.getElementById('editor-title').textContent.replace('Editing: ', ''); const code = jar.toString(); fetch('/api/apps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: filename, code: code }) }).then(res => { if (res.ok) closeEditor(); else alert("Failed to save app."); }); }
+        function closeEditor() { document.getElementById('editor-screen').style.display = 'none'; showAppsScreen(); }
+        document.addEventListener('DOMContentLoaded', () => { if (window.location.hash === '#dashboard') { showDashboardScreen(); } else { document.getElementById('dialog-box').addEventListener('click', nextDialog); } });
+    </script>
+</body>
+</html>

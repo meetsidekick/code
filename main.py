@@ -21,6 +21,14 @@ import oled_functions
 from collections import deque
 import math
 
+import network
+
+# Deactivate AP on boot to ensure clean state
+ap_if = network.WLAN(network.AP_IF)
+if ap_if.active():
+    ap_if.active(False)
+    print("Deactivated lingering AP on boot.")
+
 # === OLED HELPER FUNCTION ===
 def safe_oled_update(display_type, value=None):
     """Safely update OLED - skip if OLED is not available"""

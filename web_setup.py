@@ -1,153 +1,200 @@
 import network
-import socket
+import uasyncio as asyncio
 import time
 import binascii
 import os
 import ujson as json
+import sys
+import io
+
 import settings_store
-from machine import reset
+from machine import Pin, reset
+from pin_values import code_debug_pin_value, code_ok_pin_value
+from menu import get_preserved_files
 
-# (QR Code and mDNS would be implemented here)
-
-def qrcode_gen(text, oled, upside_down):
-    from oled_functions import update_oled
-    oled.fill(0)
-    ssid = text.split('WIFI:S:')[1].split(';')[0]
-    update_oled(oled, "text", "Scan or connect:", upside_down, line=1)
-    update_oled(oled, "text", "192.168.4.1", upside_down, line=3)
-    update_oled(oled, "text", f"AP: {ssid}", upside_down, line=5)
-    oled.show()
+# --- Globals ---
+_server_mode = 'setup'
+_server_task = None
 
 def get_random_hex():
     return binascii.hexlify(os.urandom(3)).decode('utf-8')
 
-def handle_request(cl, addr):
-    print('Client connected from', addr)
-    try:
-        # Read the entire request (up to a certain size)
-        # This is a compromise for MicroPython's limited socket features.
-        # A real HTTP server would read in chunks until headers are parsed.
-        request = cl.recv(2048).decode('utf-8') # Increased buffer size to 2048
-        print(f"Received Request:\n{request}") # Debugging: print raw request
+# --- App Runner Class --- #
+class AppRunner:
+    def __init__(self, env):
+        self.task = None
+        self.logs = io.StringIO()
+        self.original_stdout = sys.stdout
+        self.env = env
+
+    def is_running(self):
+        return self.task is not None and not self.task.done()
+
+    def get_logs(self):
+        return self.logs.getvalue()
+
+    def start(self, filename):
+        if self.is_running():
+            return False
         
+        self.logs = io.StringIO()
+        sys.stdout = self.logs
+        self.task = asyncio.create_task(self._run_app(filename))
+        return True
+
+    async def _run_app(self, filename):
         try:
-            request_line = request.split('\r\n')[0]
-            method, path, _ = request_line.split(' ')
-            print(f"Parsed: Method={method}, Path={path}") # Debugging: parsed request
-        except ValueError:
-            print("Error: Could not parse request line.") # Debugging
-            cl.close()
-            return False, None, None
+            module_name = filename[:-3]
+            if module_name in sys.modules:
+                del sys.modules[module_name]
+            
+            module = __import__(module_name)
+            if hasattr(module, 'run'):
+                module.run(self.env)
+            else:
+                print(f"Error: {filename} has no run(env) function.")
+        except Exception as e:
+            print(f"App Error: {e}")
+        finally:
+            self.stop()
 
-        # Parse headers
+    def stop(self):
+        if self.task:
+            self.task.cancel()
+            self.task = None
+        sys.stdout = self.original_stdout
+
+# --- Web Server Logic --- #
+async def handle_request(reader, writer):
+    try:
+        request_line = await reader.readline()
+        if not request_line or request_line == b'\r\n': return
+
+        method, path, _ = request_line.decode().split()
         headers = {}
-        headers_end = request.find('\r\n\r\n')
-        if headers_end != -1:
-            headers_str = request[:headers_end]
-            for line in headers_str.split('\r\n')[1:]:
-                if ':' in line:
-                    key, value = line.split(':', 1)
-                    headers[key.strip().lower()] = value.strip()
+        while True:
+            line = await reader.readline()
+            if not line or line == b'\r\n': break
+            key, value = line.decode().split(':', 1)
+            headers[key.strip().lower()] = value.strip()
 
-        if method == 'POST' and path == '/save':
-            print("Handling POST /save") # Debugging
-            content_length = int(headers.get('content-length', 0))
-            body = request[headers_end+4:] # Get body from initial request
+        body = None
+        if 'content-length' in headers:
+            body = await reader.readexactly(int(headers['content-length']))
 
-            # Read remaining body if not fully received in initial recv
-            # This loop is crucial if the body is larger than the initial recv buffer
-            while len(body) < content_length:
-                body += cl.recv(content_length - len(body)).decode('utf-8')
+        # Captive Portal
+        host = headers.get('host', '')
+        if 'generate_204' in path or 'connecttest.txt' in path or 'hotspot-detect.html' in path or 'connectivitycheck' in host:
+            redirect_url = 'http://192.168.4.1' + ('/#dashboard' if _server_mode == 'dashboard' else '')
+            await writer.awrite(b'HTTP/1.1 302 Found\r\nLocation: ' + redirect_url.encode() + b'\r\n\r\n')
+            return
 
-            # Parse URL-encoded body
-            data = {}
-            for pair in body.split('&'):
-                if '=' in pair: # Ensure pair has an '='
-                    key, value = pair.split('=', 1)
-                    data[key] = value # No unquoting needed for simple values
-                else: # Handle cases like just a key with no value
-                    data[pair] = ''
-
-            settings = settings_store._settings
-            settings['user_name'] = data.get('user_name', 'User')
-            settings['sidekick_name'] = data.get('sidekick_name', 'Sidekick')
-            settings['setup_completed'] = True
-            settings_store._save()
-
-            cl.send(b'HTTP/1.1 200 OK\r\n')
-            cl.send(b'Content-Type: application/json\r\n')
-            cl.send(b'Access-Control-Allow-Origin: *\n')
-            cl.send(b'\r\n')
-            cl.send(json.dumps({'status': 'success'}))
-            cl.close()
-            return True, data.get('user_name', 'User'), data.get('sidekick_name', 'Sidekick')
-
-        elif method == 'GET' and path == '/':
-            print("Handling GET /") # Debugging
-            with open("www/index.html", "r") as f:
-                response = f.read()
-            cl.send(b'HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n')
-            cl.send(response.encode('utf-8'))
-            print("Served index.html") # Debugging
-        
-        elif method == 'GET' and path == '/style.css':
-            print("Handling GET /style.css") # Debugging
-            with open("www/style.css", "r") as f:
-                response = f.read()
-            cl.send(b'HTTP/1.1 200 OK\r\nContent-type: text/css\r\n\r\n')
-            cl.send(response.encode('utf-8'))
-            print("Served style.css") # Debugging
-
-        elif method == 'GET' and path == '/script.js':
-            print("Handling GET /script.js") # Debugging
-            with open("www/script.js", "r") as f:
-                response = f.read()
-            cl.send(b'HTTP/1.1 200 OK\r\nContent-type: application/javascript\r\n\r\n')
-            cl.send(response.encode('utf-8'))
-            print("Served script.js") # Debugging
-
+        # API Routing
+        if path == '/':
+            await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nCache-Control: no-cache\r\n\r\n')
+            with open('sidekick-setup.html', 'rb') as f:
+                while True:
+                    chunk = f.read(512)
+                    if not chunk:
+                        break
+                    await writer.awrite(chunk)
+        elif path == '/api/apps' and method == 'GET':
+            preserved = get_preserved_files()
+            apps = [{'name': f, 'preserved': f in preserved} for f in os.listdir() if f.startswith('custom_code_') and f.endswith('.py')]
+            await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n')
+            await writer.awrite(json.dumps(apps).encode())
+        elif path == '/api/apps' and method == 'POST':
+            data = json.loads(body)
+            filename = data.get('name')
+            if filename in get_preserved_files():
+                await writer.awrite(b'HTTP/1.1 403 Forbidden\r\n\r\nCannot modify preserved file.')
+            elif filename and filename.startswith('custom_code_') and filename.endswith('.py'):
+                with open(filename, 'w') as f:
+                    f.write(data.get('code', ''))
+                await writer.awrite(b'HTTP/1.1 201 Created\r\n\r\n')
+            else:
+                await writer.awrite(b'HTTP/1.1 400 Bad Request\r\n\r\nInvalid filename.')
+        elif path == '/codejar.min.js':
+            with open('codejar.min.js', 'rb') as f:
+                await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\n\r\n')
+                await writer.awrite(f.read())
+        elif path.startswith('/api/app/'):
+            filename = path.split('/')[-1]
+            if method == 'GET':
+                with open(filename, 'r') as f: content = f.read()
+                await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n' + content.encode())
+            elif method == 'DELETE':
+                if filename in get_preserved_files():
+                    await writer.awrite(b'HTTP/1.1 403 Forbidden\r\n\r\nCannot delete preserved file.')
+                else:
+                    os.remove(filename)
+                    await writer.awrite(b'HTTP/1.1 204 No Content\r\n\r\n')
+        elif path == '/api/run' and method == 'POST':
+            filename = json.loads(body).get('name')
+            if not _app_runner.is_running() and filename:
+                _app_runner.start(filename)
+                await writer.awrite(b'HTTP/1.1 200 OK\r\n\r\n')
+            else:
+                await writer.awrite(b'HTTP/1.1 409 Conflict\r\n\r\nApp already running.')
+        elif path == '/api/stop' and method == 'POST':
+            if _app_runner.is_running(): _app_runner.stop()
+            await writer.awrite(b'HTTP/1.1 200 OK\r\n\r\n')
+        elif path == '/api/logs' and method == 'GET':
+            await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n' + _app_runner.get_logs().encode())
         else:
-            print(f"Error: 404 Not Found for path: {path}") # Debugging
-            cl.send(b'HTTP/1.1 404 Not Found\r\n\r\nFile not found')
-
+            await writer.awrite(b'HTTP/1.1 404 Not Found\r\n\r\n')
     except Exception as e:
-        print(f"General Request Handling Error: {e}") # Debugging
-        cl.close()
-    
-    return False, None, None
+        print(f"Request Error: {e}")
+    finally:
+        await writer.aclose()
 
-def start_web_setup(oled, upside_down):
+async def main_server_loop(ap):
+    server = await asyncio.start_server(handle_request, '0.0.0.0', 80)
+    if _server_mode == 'dashboard':
+        menu_button = Pin(code_debug_pin_value, Pin.IN, Pin.PULL_UP)
+        while True:
+            if menu_button.value() == 0: break
+            await asyncio.sleep_ms(100)
+    else:
+        await asyncio.Event().wait() # In setup, run until device is reset
+    server.close()
+    await server.wait_closed()
+    ap.active(False)
+
+def run_server(mode, oled, upside_down):
+    global _server_mode, _app_runner
+    _server_mode = mode
+    
+    # Create full env for app runner
+    env = {
+        'oled': oled,
+        'upside_down': upside_down,
+        'settings': settings_store,
+        'Pin': Pin,
+        'i2c': None, # Placeholder, would need to be passed in from main
+        'mpu': None, # Placeholder
+    }
+    _app_runner = AppRunner(env)
+
     ap = network.WLAN(network.AP_IF)
     ap.active(True)
-    ap.ifconfig(('192.168.4.1', '255.255.255.0', '192.168.4.1', '8.8.8.8'))
-    ssid = f"Sidekick-{get_random_hex()[:6]}"
-    ap.config(essid=ssid, password="sidekick")
+    password = settings_store.get_ap_password()
+    ssid = f"Sidekick_{settings_store.get_sidekick_id()}" if mode == 'dashboard' else f"Sidekick-{get_random_hex()[:6]}"
+    ap.config(essid=ssid, password=password, authmode=network.AUTH_WPA_WPA2_PSK)
+    while not ap.active(): time.sleep(0.1)
 
-    while not ap.active():
-        time.sleep(0.1)
+    from oled_functions import update_oled
+    oled.fill(0)
+    update_oled(oled, "text", "Dashboard Mode" if mode == 'dashboard' else "Web Setup", upside_down, line=1)
+    update_oled(oled, "text", f"AP: {ssid}", upside_down, line=3)
+    update_oled(oled, "text", f"Pass: {password}", upside_down, line=4)
+    if mode == 'dashboard': update_oled(oled, "text", "(Menu to Exit)", upside_down, line=6)
+    oled.show()
 
-    print(f"AP created with SSID: {ssid}, IP: {ap.ifconfig()[0]}")
-    # (mDNS would be started here)
+    asyncio.run(main_server_loop(ap))
 
-    qr_text = f"WIFI:S:{ssid};T:WPA;P:sidekick;H:;"
-    qrcode_gen(qr_text, oled, upside_down)
+def start_web_setup(oled, upside_down):
+    run_server('setup', oled, upside_down)
 
-    addr = socket.getaddrinfo('0.0.0.0', 80)[0][-1]
-    s = socket.socket()
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind(addr)
-    s.listen(1)
-
-    print('Listening on', addr)
-
-    # Listen for a few connections, then timeout
-    # This is a simple server, a real one would be more robust
-    for _ in range(100): # Handle up to 100 requests before restarting
-        cl, addr = s.accept()
-        success, user_name, sidekick_name = handle_request(cl, addr)
-        if success:
-            ap.active(False)
-            return True, user_name, sidekick_name
-
-    ap.active(False)
-    return False, "User", "Sidekick" # Fallback if setup isn't completed
+def start_dashboard_server(oled, upside_down):
+    run_server('dashboard', oled, upside_down)

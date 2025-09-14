@@ -47,6 +47,7 @@ FILE_PATTERNS: List[str] = [
     "www/**/*.html",
     "www/**/*.css",
     "www/**/*.js",
+    "web/**/LICENSE-*"
     "*.bmp",
 ]
 

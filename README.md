@@ -115,6 +115,7 @@ This allows the user to:
 - Mute/Unmute
 - Switch Personality Cores
 - Execute User Code
+- Enter Dashboard Mode(Starts web server, first seen on first boot and when called)
 - Wipe Stuff(User Code, Settings, etc)
 
 <!-- Eventually will be able to launch user's custom code! Update: done!-->

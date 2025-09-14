@@ -78,5 +78,10 @@ def run_first_boot(oled, upside_down):
     oled.fill(0)
     oled_functions.update_oled(oled, "text", f"Hello {user_name},", upside_down, line=1)
     oled_functions.update_oled(oled, "text", f"I'm {sidekick_name} v0!", upside_down, line=2)
+    oled_functions.update_oled(oled, "text", "Press OK to start!", upside_down, line=5)
     oled.show()
-    sleep_ms(3000)
+    
+    while ok_button.value() != 0:
+        sleep_ms(50)
+    while ok_button.value() == 0:
+        sleep_ms(50)
