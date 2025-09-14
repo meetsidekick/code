@@ -42,7 +42,7 @@
         <div class="screen" id="game-screen">
             <div id="setup-screen">
                 <div class="character-sprite" id="professor"><svg width="48" height="48" viewBox="0 0 48 48" style="image-rendering: pixelated;"><rect x="16" y="12" width="16" height="28" fill="#D4A574"/><rect x="16" y="8" width="16" height="4" fill="#2c1810"/><rect x="20" y="18" width="2" height="2" fill="#000"/><rect x="26" y="18" width="2" height="2" fill="#000"/><rect x="14" y="26" width="20" height="14" fill="#fff"/></svg></div>
-                <div class="dialog-box" id="dialog-box"><div class="dialog-text" id="dialog-text"></div><div class="dialog-arrow" id="dialog-arrow">▼</div></div>
+                <div class="dialog-box" id="dialog-box"><div class="dialog-text" id="dialog-text">Hello there! Welcome to the world of SIDEKICK!</div><div class="dialog-arrow" id="dialog-arrow">▼</div></div>
                 <div class="menu-options" id="menu-options" style="display: none;"></div>
             </div>
             <div id="dashboard-screen" class="hidden">
@@ -107,34 +107,6 @@
         function editApp(filename, isReadOnly) { fetch(`/api/app/${filename}`).then(res => res.text()).then(code => { if (!jar) initEditor(); document.getElementById('editor-title').textContent = `Editing: ${filename}`; jar.updateCode(code || '# New File'); jar.readOnly(isReadOnly); document.getElementById('save-btn').style.display = isReadOnly ? 'none' : 'block'; document.getElementById('run-btn').style.display = isReadOnly ? 'none' : 'block'; document.getElementById('apps-screen').classList.add('hidden'); document.getElementById('editor-screen').style.display = 'block'; }); }
         function saveApp() { const filename = document.getElementById('editor-title').textContent.replace('Editing: ', ''); const code = jar.toString(); fetch('/api/apps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: filename, code: code }) }).then(res => { if (res.ok) closeEditor(); else alert("Failed to save app."); }); }
         function closeEditor() { document.getElementById('editor-screen').style.display = 'none'; showAppsScreen(); }
-
-        function saveSettings() {
-            gameState.trainerName = document.getElementById('edit-trainer-name').value.trim().toUpperCase() || 'TRAINER';
-            gameState.sidekickName = document.getElementById('edit-sidekick-name').value.trim().toUpperCase() || 'SIDEKICK';
-            fetch('/api/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_name: gameState.trainerName, sidekick_name: gameState.sidekickName })
-            }).then(res => {
-                if (res.ok) {
-                    showDashboard();
-                } else {
-                    alert("Failed to save settings.");
-                }
-            });
-        }
-
-        function resetDevice() {
-            if (confirm('Reset SIDEKICK? All data will be lost!')) {
-                fetch('/api/reset', { method: 'POST' }).then(res => {
-                    if (res.ok) {
-                        // Device will reboot
-                    } else {
-                        alert("Failed to reset device.");
-                    }
-                });
-            }
-        }
         document.addEventListener('DOMContentLoaded', () => { fetch('/api/status').then(res => res.json()).then(status => { gameState.trainerName = status.user_name; gameState.sidekickName = status.sidekick_name; if (status.setup_completed) { showDashboardScreen(); } else { document.getElementById('dialog-box').addEventListener('click', () => { if(dialogMode) nextDialog(); }); dialogMode = true; showDialog(dialogs[0]); } }); });
     </script>
 </body>

@@ -135,6 +135,8 @@ async def handle_request(reader, writer):
             settings_store._save()
             await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n')
             await writer.awrite(json.dumps({'status': 'success'}).encode())
+            setup_complete_event.set()
+            await asyncio.sleep_ms(10) # Give event loop a chance to switch context
         elif path.startswith('/api/app/'):
             filename = path.split('/')[-1]
             if method == 'GET':
@@ -217,7 +219,22 @@ def run_server(mode, oled, upside_down):
     if mode == 'dashboard': update_oled(oled, "text", "(Menu to Exit)", upside_down, line=6)
     oled.show()
 
-    asyncio.run(main_server_loop(ap))
+    # Explicitly manage the event loop for setup mode
+    loop = asyncio.get_event_loop()
+    server_task = loop.create_task(main_server_loop(ap))
+    
+    # Run the loop until the setup is complete
+    loop.run_until_complete(setup_complete_event.wait())
+    
+    # Once setup is complete, cancel the server task and close the loop
+    server_task.cancel()
+    try:
+        loop.run_until_complete(server_task) # Allow task to clean up
+    except asyncio.CancelledError:
+        pass
+    
+    # Close the loop (important for clean exit)
+    loop.close()
 
 def start_web_setup(oled, upside_down):
     run_server('setup', oled, upside_down)
