@@ -244,18 +244,21 @@ def _render_menu(oled, items, idx, debug=False, upside_down=False):
 def _display_ids(oled, upside_down, ok_button):
     user_name = settings_store._settings.get('user_name', 'User')
     sidekick_name = settings_store._settings.get('sidekick_name', 'Sidekick')
-    
+    sidekick_id = settings_store._settings.get('sidekick_id', 'Sidekick')
+
     if oled:
         oled.fill(0)
         _text(oled, "User:", 0, 0, upside_down)
         _text(oled, user_name, 0, 12, upside_down)
         _text(oled, "Sidekick:", 0, 24, upside_down)
         _text(oled, sidekick_name, 0, 36, upside_down)
+        _text(oled, f"Sidekick ID:{sidekick_id}", 0, 44, upside_down)
         _text(oled, "Press OK", 0, 54, upside_down)
         oled.show()
     else:
         print(f"User: {user_name}")
         print(f"Sidekick: {sidekick_name}")
+        print(f"Sidekick ID: {sidekick_id}")
         print("Press OK to exit")
 
     if ok_button:
