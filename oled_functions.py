@@ -175,7 +175,14 @@ def get_face_and_x(mood, now, anim_state):
     x = _centered_x(face)
     return face, x
 
-def update_oled(oled, mood="happy", value=50, upside_down=False, debug_mode=False):
+def update_oled(oled, mood="happy", value=None, upside_down=False, debug_mode=False, **kwargs):
+    if mood == "text":
+        line = kwargs.get("line", 1)
+        y = (line - 1) * 10
+        text_to_display = str(value) if value is not None else ""
+        _text(oled, text_to_display, 0, y, upside_down)
+        return
+
     global _last_blink_time, _blinking, _next_blink_interval, _shake_start, _headpat_start
     now = ticks_ms()
     anim_state = {}

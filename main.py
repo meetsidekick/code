@@ -32,6 +32,9 @@ def safe_oled_update(display_type, value=None):
         else:
             print(f"🖥️ OLED: {display_type}")
 
+import settings_store
+import first_boot
+
 # === OLED & I2C Initialization ===
 i2c_bus = I2C(0, scl=Pin(5), sda=Pin(4), freq=400_000)  # SCL=5, SDA=4
 sleep_ms(100)  # Wait for I2C bus to settle
@@ -46,6 +49,13 @@ except OSError as e:
     print(f"⚠️ OLED initialization failed: {e}")
     print("🔧 Debug mode enabled: Continuing without OLED...")
     oled = None
+
+# === DISPLAY SETTINGS ===
+UPSIDE_DOWN = True  # Set to True to flip the display 180 degrees
+
+# === FIRST BOOT CHECK ===
+if not settings_store._settings.get('setup_completed', False):
+    first_boot.run_first_boot(oled, UPSIDE_DOWN)
 
 # === DEVICES/SENSORS ===
 # Initialize ADXL345 with error handling built-in

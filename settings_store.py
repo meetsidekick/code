@@ -9,9 +9,12 @@ import binascii # Added for sidekick_id generation
 
 _SETTINGS_FILE = "settings.json"
 _default_settings = {
+    "setup_completed": False,
+    "user_name": "User",
+    "sidekick_name": "Sidekick",
     "mute": False,
-    "core_type": "Custom",  # Default highlight Custom; fallback to Default if not present
-    "sidekick_id": None, # New default for sidekick_id
+    "core_type": "Custom",
+    "sidekick_id": None,
 }
 
 _settings = {}

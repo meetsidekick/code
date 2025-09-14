@@ -241,16 +241,21 @@ def _render_menu(oled, items, idx, debug=False, upside_down=False):
     except Exception:
         pass
 
-def _display_sidekick_id(oled, upside_down, ok_button):
-    sidekick_id = settings_store.get_sidekick_id()
+def _display_ids(oled, upside_down, ok_button):
+    user_name = settings_store._settings.get('user_name', 'User')
+    sidekick_name = settings_store._settings.get('sidekick_name', 'Sidekick')
+    
     if oled:
         oled.fill(0)
-        _text(oled, "Sidekick ID:", 0, 0, upside_down)
-        _text(oled, str(sidekick_id), 0, 20, upside_down)
-        _text(oled, "Press OK to exit", 0, 40, upside_down)
+        _text(oled, "User:", 0, 0, upside_down)
+        _text(oled, user_name, 0, 12, upside_down)
+        _text(oled, "Sidekick:", 0, 24, upside_down)
+        _text(oled, sidekick_name, 0, 36, upside_down)
+        _text(oled, "Press OK", 0, 54, upside_down)
         oled.show()
     else:
-        print(f"Sidekick ID: {sidekick_id}")
+        print(f"User: {user_name}")
+        print(f"Sidekick: {sidekick_name}")
         print("Press OK to exit")
 
     if ok_button:
@@ -269,7 +274,7 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
     base_items = [
         {"name": f"Mute", "key": "mute", "type": "toggle"},
         {"name": f"Core: {core_label}", "key": "core", "type": "action"},
-        {"name": "See Sidekick ID", "key": "sidekick_id", "type": "action"},
+        {"name": "See IDs", "key": "sidekick_id", "type": "action"},
         {"name": "Run Custom Apps", "key": "exec", "type": "action"},
         {"name": "Wipe Extra Apps", "key": "wipe_custom", "type": "action"},
         {"name": "Reset Settings", "key": "reset", "type": "action"},
@@ -313,7 +318,7 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
                         settings_store.toggle_core_type()
                         oled_functions.reload_core()
                 elif item['key'] == 'sidekick_id':
-                    _display_sidekick_id(oled, upside_down, env.get('ok_button'))
+                    _display_ids(oled, upside_down, env.get('ok_button'))
                 elif item['key'] == 'exec':
                     result = _execute_code_menu(oled, debug_mode, upside_down, env)
                     if result == 'home':
@@ -322,6 +327,8 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
                     _wipe_custom_code()
                 elif item['key'] == 'reset':
                     settings_store.reset_settings()
+                    import machine
+                    machine.reset()
                 elif item['key'] in ('exit','back'):
                     while code_ok_pin.value()==0:
                         sleep_ms(15)
