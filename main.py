@@ -144,7 +144,7 @@ while True:
             'oled': oled,
             'mpu': mpu,
             'i2c': i2c_bus, # Add i2c bus to env
-            'open_menu': lambda : open_menu(oled, SET_DEBUG, UPSIDE_DOWN, True, env=None),
+            'open_menu': lambda : open_menu(oled, SET_DEBUG, UPSIDE_DOWN, True, env=env),
         }
         # Read accelerometer data and calculate movement force
         try:

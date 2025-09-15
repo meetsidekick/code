@@ -77,27 +77,46 @@ class BLEHIDPeripheral:
         print(f"Advertising as {self._name}")
 
     def _irq(self, event, data):
+        print(f"BLE IRQ: event={event}, data={data}")
         if event == 1: # _IRQ_CENTRAL_CONNECT
             conn_handle, _, _ = data
             self._connections.add(conn_handle)
             print(f"Connected: {conn_handle}")
         elif event == 2: # _IRQ_CENTRAL_DISCONNECT
-            conn_handle = data[0] if isinstance(data, tuple) else data
+            conn_handle, _, _ = data
             if conn_handle in self._connections:
                 self._connections.remove(conn_handle)
             print(f"Disconnected: {conn_handle}")
             self._advertise() # Restart advertising after disconnection
+        elif event == 21: # _IRQ_GATTS_READ_REQUEST
+            conn_handle, attr_handle = data
+            print(f"GATTS Read Request: conn={conn_handle}, attr={attr_handle}")
 
     def is_connected(self):
         return len(self._connections) > 0
 
     def send_report(self, report):
         for conn_handle in self._connections:
-            self._ble.gatts_notify(conn_handle, self._report_handle, report)
+            try:
+                self._ble.gatts_notify(conn_handle, self._report_handle, report)
+            except OSError as e:
+                print(f"Error sending report to {conn_handle}: {e}")
+                # Handle disconnection if error indicates it
+                if conn_handle in self._connections:
+                    self._connections.remove(conn_handle)
+                self._advertise()
+
 
     def deinit(self):
-        self._ble.active(False)
-        print("BLE HID deinitialized.")
+        try:
+            for conn_handle in self._connections:
+                self._ble.gap_disconnect(conn_handle)
+            self._connections.clear()
+            self._ble.gap_advertise(None)
+            self._ble.active(False)
+            print("BLE HID deinitialized.")
+        except Exception as e:
+            print(f"Error during BLE deinit: {e}")
 
 # --- Keyboard Functions -------------------------------------------------------
 def send_key(ble_hid, modifier, keycode):
@@ -149,70 +168,76 @@ def run(env):
 
     display_status()
 
-    # Initialize BLE
     try:
-        ble_hid = BLEHIDPeripheral(name=device_name)
-        connection_status = "Searching..."
-        display_status()
-    except Exception as e:
-        connection_status = f"BLE Error: {e}"
-        display_status()
-        sleep_ms(2000)
-        if oled: oled.fill(0); oled.show()
-        return # Exit if BLE init fails
-
-    last_ok_press_time = 0
-    last_menu_press_time = 0
-    HOLD_THRESHOLD_MS = 700 # Milliseconds for a "hold" action
-
-    while True:
-        # Update connection status
-        if ble_hid and ble_hid.is_connected() and connection_status != "Connected":
-            connection_status = "Connected"
-            display_status()
-        elif ble_hid and not ble_hid.is_connected() and connection_status != "Advertising...":
+        # Initialize BLE
+        try:
+            ble_hid = BLEHIDPeripheral(name=device_name)
             connection_status = "Searching..."
             display_status()
+        except Exception as e:
+            connection_status = f"BLE Error: {e}"
+            display_status()
+            sleep_ms(2000)
+            if oled: oled.fill(0); oled.show()
+            return # Exit if BLE init fails
 
-        # OK Button Handling
-        if ok_button.value() == 0: # Button is pressed
-            press_start_time = ticks_ms()
-            while ok_button.value() == 0:
-                sleep_ms(20)
-                if ticks_diff(ticks_ms(), press_start_time) >= HOLD_THRESHOLD_MS:
-                    # Hold OK: Cycle Keybinds
-                    if ticks_diff(ticks_ms(), last_ok_press_time) > HOLD_THRESHOLD_MS: # Prevent rapid cycling on hold
-                        current_keybind_index = (current_keybind_index + 1) % len(keybind_options)
-                        current_keybind_name = keybind_options[current_keybind_index][0]
-                        display_status()
-                        last_ok_press_time = ticks_ms()
-                    # Keep holding until released
-                    while ok_button.value() == 0:
-                        sleep_ms(20)
-                    break # Exit inner loop after hold action
-            else: # Short press OK: Next Slide
-                if ble_hid and ble_hid.is_connected():
-                    _, _, next_slide_keycode = keybind_options[current_keybind_index]
-                    send_key(ble_hid, MOD_NONE, next_slide_keycode)
-                sleep_ms(200) # Debounce
-            last_ok_press_time = ticks_ms() # Update last press time for debounce/hold logic
+        last_ok_press_time = 0
+        last_menu_press_time = 0
+        HOLD_THRESHOLD_MS = 700 # Milliseconds for a "hold" action
 
-        # Menu Button Handling
-        if menu_button.value() == 0: # Button is pressed
-            press_start_time = ticks_ms()
-            while menu_button.value() == 0:
-                sleep_ms(20)
-                if ticks_diff(ticks_ms(), press_start_time) >= HOLD_THRESHOLD_MS:
-                    # Hold Menu: Go back to menu
-                    if ble_hid: ble_hid.deinit()
-                    if oled: oled.fill(0); oled.show()
-                    menu.open_menu(oled=oled, debug_mode=False, upside_down=upside_down, called_from_main=False, env=env)
-                    return # Exit this custom code
-            else: # Short press Menu: Previous Slide
-                if ble_hid and ble_hid.is_connected():
-                    _, prev_slide_keycode, _ = keybind_options[current_keybind_index]
-                    send_key(ble_hid, MOD_NONE, prev_slide_keycode)
-                sleep_ms(200) # Debounce
-            last_menu_press_time = ticks_ms() # Update last press time for debounce/hold logic
+        while True:
+            # Update connection status
+            if ble_hid and ble_hid.is_connected() and connection_status != "Connected":
+                connection_status = "Connected"
+                display_status()
+            elif ble_hid and not ble_hid.is_connected() and connection_status != "Searching...":
+                connection_status = "Searching..."
+                display_status()
 
-        sleep_ms(50) # Main loop delay
+            # OK Button Handling
+            if ok_button.value() == 0: # Button is pressed
+                press_start_time = ticks_ms()
+                while ok_button.value() == 0:
+                    sleep_ms(20)
+                    if ticks_diff(ticks_ms(), press_start_time) >= HOLD_THRESHOLD_MS:
+                        # Hold OK: Cycle Keybinds
+                        if ticks_diff(ticks_ms(), last_ok_press_time) > HOLD_THRESHOLD_MS: # Prevent rapid cycling on hold
+                            current_keybind_index = (current_keybind_index + 1) % len(keybind_options)
+                            current_keybind_name = keybind_options[current_keybind_index][0]
+                            display_status()
+                            last_ok_press_time = ticks_ms()
+                        # Keep holding until released
+                        while ok_button.value() == 0:
+                            sleep_ms(20)
+                        break # Exit inner loop after hold action
+                else: # Short press OK: Next Slide
+                    if ble_hid and ble_hid.is_connected():
+                        _, _, next_slide_keycode = keybind_options[current_keybind_index]
+                        send_key(ble_hid, MOD_NONE, next_slide_keycode)
+                    sleep_ms(200) # Debounce
+                last_ok_press_time = ticks_ms() # Update last press time for debounce/hold logic
+
+            # Menu Button Handling
+            if menu_button.value() == 0: # Button is pressed
+                press_start_time = ticks_ms()
+                while menu_button.value() == 0:
+                    sleep_ms(20)
+                    if ticks_diff(ticks_ms(), press_start_time) >= HOLD_THRESHOLD_MS:
+                        # Hold Menu: Go back to menu
+                        if oled: oled.fill(0); oled.show()
+                        menu.open_menu(oled=oled, debug_mode=False, upside_down=upside_down, called_from_main=False, env=env)
+                        return # Exit this custom code
+                else: # Short press Menu: Previous Slide
+                    if ble_hid and ble_hid.is_connected():
+                        _, prev_slide_keycode, _ = keybind_options[current_keybind_index]
+                        send_key(ble_hid, MOD_NONE, prev_slide_keycode)
+                    sleep_ms(200) # Debounce
+                last_menu_press_time = ticks_ms() # Update last press time for debounce/hold logic
+
+            sleep_ms(50) # Main loop delay
+    finally:
+        if ble_hid:
+            ble_hid.deinit()
+        if oled:
+            oled.fill(0)
+            oled.show()

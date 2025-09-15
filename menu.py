@@ -422,9 +422,9 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
                     while code_ok_pin.value()==0: sleep_ms(15)
                     _reinit_buttons()
                     return 'home'
-                from time import sleep_ms as _slp
                 try:
-                    env_full = {
+                    env_full = env.copy() if env else {}
+                    env_full.update({
                         'oled': env.get('oled') if env else oled,
                         'mpu': env.get('mpu') if env else None,
                         'i2c': env.get('i2c') if env else None, # Pass i2c bus
@@ -435,7 +435,7 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
                         'sleep_ms': _slp,
                         'Pin': Pin,
                         'upside_down': upside_down,
-                    }
+                    })
                 except Exception:
                     env_full = {'oled': oled, 'menu_button': code_debug_pin, 'ok_button': code_ok_pin, 'upside_down': upside_down}
                 _run_script(sel, env_full)
