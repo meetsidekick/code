@@ -428,7 +428,6 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
                         'oled': env.get('oled') if env else oled,
                         'mpu': env.get('mpu') if env else None,
                         'i2c': env.get('i2c') if env else None, # Pass i2c bus
-                        'open_menu': (lambda : open_menu(oled, debug_mode, upside_down, True, env)),
                         'menu_button': code_debug_pin,
                         'ok_button': code_ok_pin,
                         'settings': settings_store,
