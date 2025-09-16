@@ -258,6 +258,12 @@ def run_server(mode, oled, upside_down):
             except asyncio.CancelledError:
                 pass  # This is expected.
 
+            # Retrieve user data after setup is complete
+            user_data = {
+                'user_name': settings_store._settings.get('user_name', 'User'),
+                'sidekick_name': settings_store._settings.get('sidekick_name', 'Sidekick')
+            }
+
         finally:
             # Deactivate and de-initialize the access point.
             ap.active(False)

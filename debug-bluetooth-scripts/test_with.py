@@ -21,14 +21,14 @@ async def handle_request(reader, writer):
 
         if path == '/':
             await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nCache-Control: no-cache\r\n\r\n')
-            with open('www/sidekick-setup.html', 'rb') as f:
+            with open('sidekick-setup.html', 'rb') as f:
                 while True:
                     chunk = f.read(512)
                     if not chunk:
                         break
                     await writer.awrite(chunk)
         elif path == '/codejar.min.js':
-            with open('www/codejar.min.js', 'rb') as f:
+            with open('/codejar.min.js', 'rb') as f:
                 await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\n\r\n')
                 await writer.awrite(f.read())
         else:
