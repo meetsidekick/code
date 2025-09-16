@@ -432,7 +432,6 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
                         'menu_button': code_debug_pin,
                         'ok_button': code_ok_pin,
                         'settings': settings_store,
-                        'sleep_ms': _slp,
                         'Pin': Pin,
                         'upside_down': upside_down,
                     })
