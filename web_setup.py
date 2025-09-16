@@ -175,7 +175,8 @@ async def main_server_loop(ap):
     if _server_mode == 'dashboard':
         menu_button = Pin(code_debug_pin_value, Pin.IN, Pin.PULL_UP)
         while True:
-            if menu_button.value() == 0: break
+            if menu_button.value() == 0: # Button pressed
+                break # Exit immediately on press
             await asyncio.sleep_ms(100)
     else: # setup mode
         print("DEBUG: main_server_loop waiting for setup_complete_event.")
@@ -219,6 +220,7 @@ def run_server(mode, oled, upside_down):
     update_oled(oled, "text", "Dashboard Mode" if mode == 'dashboard' else "Web Setup", upside_down, line=1)
     update_oled(oled, "text", f"AP:{ssid}", upside_down, line=3)
     update_oled(oled, "text", f"Pass: {password}", upside_down, line=4)
+    update_oled(oled, "text", f"192.168.4.1", upside_down, line=5)
     if mode == 'dashboard': update_oled(oled, "text", "(Menu to Exit)", upside_down, line=6)
     oled.show()
 
@@ -253,9 +255,15 @@ def run_server(mode, oled, upside_down):
             print("Web setup complete, AP deactivated and de-initialized.")
         return user_data
     else: # dashboard mode
-        # In dashboard mode, we assume an event loop is already running.
-        # We just create the server task and let the existing loop handle it.
-        asyncio.create_task(main_server_loop(ap))
+        try:
+            loop = asyncio.get_event_loop()
+            server_task = loop.create_task(main_server_loop(ap))
+            
+            # Run the loop until the server_task completes (i.e., dashboard exits via long press)
+            loop.run_until_complete(server_task)
+
+        except asyncio.CancelledError:
+            pass # Expected if the task is cancelled externally, though not expected here.
 
 
 

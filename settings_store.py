@@ -39,7 +39,7 @@ def _load():
 def get_ap_password():
     global _settings
     if "ap_password" not in _settings or not _settings["ap_password"]:
-        letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+        letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNPQRSTWXYZ123456789'
         _settings["ap_password"] = ''.join(random.choice(letters) for _ in range(8))
         _save()
     return _settings["ap_password"]
