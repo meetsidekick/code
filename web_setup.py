@@ -130,13 +130,18 @@ async def handle_request(reader, writer):
 # ...
     # ...
         elif path == '/save' and method == 'POST':
-            global user_data
             data = {k: v for k, v in [pair.split('=', 1) for pair in body.decode().split('&') if '=' in pair]}
-            user_data = {
-                'user_name': data.get('user_name', 'User'),
-                'sidekick_name': data.get('sidekick_name', 'Sidekick'),
-            }
-            setup_complete_event.set()
+            
+            # Update settings_store directly
+            settings_store._settings['user_name'] = data.get('user_name', 'User')
+            settings_store._settings['sidekick_name'] = data.get('sidekick_name', 'Sidekick')
+            settings_store._settings['setup_completed'] = True # Mark setup as completed
+            settings_store._save() # Save the settings to file
+
+            # If this is during first boot setup, signal completion
+            if _server_mode == 'setup':
+                setup_complete_event.set()
+
             await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n')
             await writer.awrite(json.dumps({'status': 'success'}).encode())
             await asyncio.sleep_ms(10) # Give event loop a chance to switch context
@@ -163,6 +168,11 @@ async def handle_request(reader, writer):
             await writer.awrite(b'HTTP/1.1 200 OK\r\n\r\n')
         elif path == '/api/logs' and method == 'GET':
             await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n' + _app_runner.get_logs().encode())
+        elif path == '/api/reset' and method == 'POST':
+            settings_store.reset_settings()
+            from machine import reset
+            reset()
+            await writer.awrite(b'HTTP/1.1 200 OK\r\n\r\n')
         else:
             await writer.awrite(b'HTTP/1.1 404 Not Found\r\n\r\n')
     except Exception as e:

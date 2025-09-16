@@ -84,7 +84,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
     <script>
         let gameState = { trainerName: 'TRAINER', sidekickName: 'SIDEKICK' };
-        const dialogs = ["Hello! Welcome to SIDEKICK!", "My name is OAK!", "First, what is your name?"];
+        const dialogs = ["Hello! Welcome to SIDEKICK!", "My name is Souhrud!", "First, what is your name?"];
         let currentDialog = 0, inputMode = false, menuMode = false, jar, dialogMode = false;
 
         function initEditor() { const editor = document.getElementById('editor'); const highlight = editor => { Prism.highlightElement(editor); }; jar = CodeJar(editor, highlight, { tab: '    ' }); }
@@ -98,6 +98,41 @@
         function skipSidekickNaming() { gameState.sidekickName = 'SIDEKICK'; showConfirmation(); }
         function showConfirmation() { showDialog(`You: ${gameState.trainerName}\nSidekick: ${gameState.sidekickName}\n\nIs this correct?`); showMenu([{ text: "YES", action: sendDataAndFinish }, { text: "NO", action: () => { currentDialog = 1; dialogMode = true; nextDialog(); } }]); }
         function sendDataAndFinish() { showDialog("Saving your settings...", false); fetch('/save', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: `user_name=${encodeURIComponent(gameState.trainerName)}&sidekick_name=${encodeURIComponent(gameState.sidekickName)}` }).then(res => { if (res.ok) { showDialog("Reboot Device and Go to Settings(Menu Button) -> \"Start Dashboard\" and connect, and reload to continue.", false); } else { showDialog("Error: Could not save settings. Please reset the device.", false); } }); }
+        function showEditScreen() {
+            document.getElementById('dashboard-screen').classList.add('hidden');
+            document.getElementById('edit-screen').classList.remove('hidden');
+            document.getElementById('edit-trainer-name').value = gameState.trainerName;
+            document.getElementById('edit-sidekick-name').value = gameState.sidekickName;
+        }
+        function saveSettings() {
+            const newTrainerName = document.getElementById('edit-trainer-name').value.trim().toUpperCase();
+            const newSidekickName = document.getElementById('edit-sidekick-name').value.trim().toUpperCase();
+            showDialog("Saving your settings...", false);
+            fetch('/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `user_name=${encodeURIComponent(newTrainerName)}&sidekick_name=${encodeURIComponent(newSidekickName)}`
+            }).then(res => {
+                if (res.ok) {
+                    gameState.trainerName = newTrainerName;
+                    gameState.sidekickName = newSidekickName;
+                    showDialog("Settings saved. Reboot Device and Go to Settings(Menu Button) -> \"Start Dashboard\" and connect, and reload to continue.", false);
+                } else {
+                    showDialog("Error: Could not save settings. Please reset the device.", false);
+                }
+            });
+        }
+        function resetDevice() {
+            if (confirm("Are you sure you want to reset the device? This will erase all settings and custom apps.")) {
+                fetch('/api/reset', { method: 'POST' }).then(res => {
+                    if (res.ok) {
+                        alert("Device is resetting...");
+                    } else {
+                        alert("Failed to reset device.");
+                    }
+                });
+            }
+        }
         function showDashboardScreen() { document.getElementById('setup-screen').style.display = 'none'; document.getElementById('dashboard-screen').classList.remove('hidden'); document.getElementById('trainer-name-display').textContent = gameState.trainerName; document.getElementById('sidekick-name-display').textContent = gameState.sidekickName; }
         function showDashboard() { document.getElementById('edit-screen').classList.add('hidden'); document.getElementById('apps-screen').classList.add('hidden'); document.getElementById('dashboard-screen').classList.remove('hidden'); }
         function showAppsScreen() { document.getElementById('dashboard-screen').classList.add('hidden'); document.getElementById('apps-screen').classList.remove('hidden'); renderApps(); }
