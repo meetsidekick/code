@@ -127,15 +127,18 @@ async def handle_request(reader, writer):
             }
             await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n')
             await writer.awrite(json.dumps(status).encode())
+# ...
+    # ...
         elif path == '/save' and method == 'POST':
+            global user_data
             data = {k: v for k, v in [pair.split('=', 1) for pair in body.decode().split('&') if '=' in pair]}
-            settings_store._settings['user_name'] = data.get('user_name', 'User')
-            settings_store._settings['sidekick_name'] = data.get('sidekick_name', 'Sidekick')
-            settings_store._settings['setup_completed'] = True
-            settings_store._save()
+            user_data = {
+                'user_name': data.get('user_name', 'User'),
+                'sidekick_name': data.get('sidekick_name', 'Sidekick'),
+            }
+            setup_complete_event.set()
             await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n')
             await writer.awrite(json.dumps({'status': 'success'}).encode())
-            setup_complete_event.set()
             await asyncio.sleep_ms(10) # Give event loop a chance to switch context
         elif path.startswith('/api/app/'):
             filename = path.split('/')[-1]
@@ -183,7 +186,7 @@ async def main_server_loop(ap):
     ap.active(False)
 
 def run_server(mode, oled, upside_down):
-    global _server_mode, _app_runner
+    global _server_mode, _app_runner, user_data
     _server_mode = mode
     
     # Create full env for app runner
@@ -246,8 +249,9 @@ def run_server(mode, oled, upside_down):
         finally:
             # Deactivate and de-initialize the access point.
             ap.active(False)
-            ap.deinit()
+            #ap.deinit()
             print("Web setup complete, AP deactivated and de-initialized.")
+        return user_data
     else: # dashboard mode
         # In dashboard mode, we assume an event loop is already running.
         # We just create the server task and let the existing loop handle it.
@@ -256,7 +260,7 @@ def run_server(mode, oled, upside_down):
 
 
 def start_web_setup(oled, upside_down):
-    run_server('setup', oled, upside_down)
+    return run_server('setup', oled, upside_down)
 
 def start_dashboard_server(oled, upside_down):
     run_server('dashboard', oled, upside_down)

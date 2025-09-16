@@ -40,7 +40,7 @@ FILE_PATTERNS: List[str] = [
     "settings_store.py",
     "default_core.json",
     "custom_core.json",
-    "custom_code_*.py",
+    "custom_code/custom_code_*.py",
     "lib/**/*.py",
     "first_boot.py",
     "web_setup.py",

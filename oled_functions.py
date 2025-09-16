@@ -62,11 +62,11 @@ def reload_core():
 reload_core()
 
 # Small text helper that respects upside_down
-def _text(oled, text, x, y, upside_down=False):
+def _text(oled, text, x, y, upside_down=False, color=1):
     if not text:
         return
     if not upside_down:
-        oled.text(text, x, y)
+        oled.text(text, x, y, color)
         return
     w = len(text) * 8
     h = 8
@@ -79,7 +79,7 @@ def _text(oled, text, x, y, upside_down=False):
                 fx = 128 - (x + (i + 1))
                 fy = 64 - (y + (j + 1))
                 if 0 <= fx < 128 and 0 <= fy < 64:
-                    oled.pixel(fx, fy, 1)
+                    oled.pixel(fx, fy, color)
 
 # --- Animation state ---
 _last_blink_time = 0
@@ -177,10 +177,19 @@ def get_face_and_x(mood, now, anim_state):
 
 def update_oled(oled, mood="happy", value=None, upside_down=False, debug_mode=False, **kwargs):
     if mood == "text":
-        line = kwargs.get("line", 1)
-        y = (line - 1) * 10
+        line = kwargs.get("line")
+        x = kwargs.get("x", 0)
+        y = kwargs.get("y")
+
+        if y is None:
+            if line is not None:
+                y = (line - 1) * 10
+            else:
+                y = 0  # Default to top if no y or line is provided
+        
         text_to_display = str(value) if value is not None else ""
-        _text(oled, text_to_display, 0, y, upside_down)
+        color = kwargs.get("color", 1)
+        _text(oled, text_to_display, x, y, upside_down, color)
         return
 
     global _last_blink_time, _blinking, _next_blink_interval, _shake_start, _headpat_start
