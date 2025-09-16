@@ -219,22 +219,41 @@ def run_server(mode, oled, upside_down):
     if mode == 'dashboard': update_oled(oled, "text", "(Menu to Exit)", upside_down, line=6)
     oled.show()
 
-    # Explicitly manage the event loop for setup mode
-    loop = asyncio.get_event_loop()
-    server_task = loop.create_task(main_server_loop(ap))
-    
-    # Run the loop until the setup is complete
-    loop.run_until_complete(setup_complete_event.wait())
-    
-    # Once setup is complete, cancel the server task and close the loop
-    server_task.cancel()
-    try:
-        loop.run_until_complete(server_task) # Allow task to clean up
-    except asyncio.CancelledError:
-        pass
-    
-    # Close the loop (important for clean exit)
-    loop.close()
+    # In setup mode, we need to run the asyncio loop until the setup is complete.
+    # We must not close the loop, as this will break other asyncio-based scripts.
+    if mode == 'setup':
+        try:
+            # Get the existing event loop.
+            loop = asyncio.get_event_loop()
+
+            # Create and run the server task.
+            server_task = loop.create_task(main_server_loop(ap))
+
+            # Run the loop until the setup_complete_event is set.
+            loop.run_until_complete(setup_complete_event.wait())
+
+            # Once setup is complete, cancel the server task.
+            # This is important for cleanup.
+            server_task.cancel()
+
+            # We need to run the loop one last time to allow the cancelled task to finish.
+            # We use run_until_complete on the cancelled task.
+            try:
+                loop.run_until_complete(server_task)
+            except asyncio.CancelledError:
+                pass  # This is expected.
+
+        finally:
+            # Deactivate and de-initialize the access point.
+            ap.active(False)
+            ap.deinit()
+            print("Web setup complete, AP deactivated and de-initialized.")
+    else: # dashboard mode
+        # In dashboard mode, we assume an event loop is already running.
+        # We just create the server task and let the existing loop handle it.
+        asyncio.create_task(main_server_loop(ap))
+
+
 
 def start_web_setup(oled, upside_down):
     run_server('setup', oled, upside_down)

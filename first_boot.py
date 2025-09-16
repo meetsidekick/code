@@ -3,7 +3,6 @@ import settings_store
 from machine import Pin
 from time import sleep_ms, ticks_ms, ticks_diff
 from pin_values import code_debug_pin_value, code_ok_pin_value
-import web_setup
 
 def run_first_boot(oled, upside_down):
     """
@@ -59,6 +58,7 @@ def run_first_boot(oled, upside_down):
             selection = menu_items[selected_index]['key']
             
             if selection == "web":
+                import web_setup
                 web_setup.start_web_setup(oled, upside_down)
                 # After setup is complete, the script will continue and reboot.
                 break
