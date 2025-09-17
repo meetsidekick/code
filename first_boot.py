@@ -45,7 +45,7 @@ def run_first_boot(oled, upside_down):
             selector_width = skip_text_width + 12
         
         # Smooth animation for selector
-        selector_x += (target_selector_x - selector_x) * 1
+        selector_x += (target_selector_x - selector_x) * 0.9
         
         # Draw selector as a filled rectangle
         oled.fill_rect(int(selector_x), 25, selector_width, 15, 1)
