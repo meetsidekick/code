@@ -3,7 +3,6 @@ import settings_store
 from machine import Pin
 from time import sleep_ms, ticks_ms, ticks_diff
 from pin_values import code_debug_pin_value, code_ok_pin_value
-import framebuf
 
 def run_first_boot(oled, upside_down):
     """
@@ -46,7 +45,7 @@ def run_first_boot(oled, upside_down):
             selector_width = skip_text_width + 12
         
         # Smooth animation for selector
-        selector_x += (target_selector_x - selector_x) * 0.8
+        selector_x += (target_selector_x - selector_x) * 1
         
         # Draw selector as a filled rectangle
         oled.fill_rect(int(selector_x), 25, selector_width, 15, 1)
@@ -88,30 +87,20 @@ def run_first_boot(oled, upside_down):
                 settings_store._settings['sidekick_name'] = "Sidekick"
                 settings_store._settings['setup_completed'] = True
                 settings_store._save()
+                sleep_ms(100)
                 break
 
             # Short press logic
             selection = menu_items[selected_index]['key']
             
             if selection == "web":
-                try:
-                    import web_setup
-                    web_setup_data = web_setup.start_web_setup(oled, upside_down)
-                    if web_setup_data:
-                        settings_store._settings['user_name'] = web_setup_data.get('user_name', 'User')
-                        settings_store._settings['sidekick_name'] = web_setup_data.get('sidekick_name', 'Sidekick')
-                        settings_store._settings['setup_completed'] = True
-                        settings_store._save()
-                    break
-                except ImportError:
-                    pass
+                import web_server
+                web_server.start_web_server(oled, upside_down)
+                break
             elif selection == "skip":
                 settings_store._settings['user_name'] = "User"
                 settings_store._settings['sidekick_name'] = "Sidekick"
                 settings_store._settings['setup_completed'] = True
                 settings_store._save()
+                sleep_ms(100)
                 break
-
-    print("DEBUG: Reached reboot point in first_boot.py.")
-    from machine import reset
-    reset()

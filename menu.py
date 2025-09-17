@@ -283,7 +283,7 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
         {"name": "See IDs", "key": "sidekick_id", "type": "action"},
         {"name": "Run Custom Apps", "key": "exec", "type": "action"},
         {"name": "Wipe Extra Apps", "key": "wipe_custom", "type": "action"},
-        {"name": "Start Dashboard", "key": "start_dashboard", "type": "action"},
+        {"name": "Start Web Server", "key": "start_web_server", "type": "action"},
         {"name": "Reset Settings", "key": "reset", "type": "action"},
     ]
     if called_from_main:
@@ -332,9 +332,9 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
                         return 'exit'
                 elif item['key'] == 'wipe_custom':
                     _wipe_custom_code()
-                elif item['key'] == 'start_dashboard':
-                    import web_setup
-                    web_setup.start_dashboard_server(oled, upside_down)
+                elif item['key'] == 'start_web_server':
+                    import web_server
+                    web_server.start_web_server(oled, upside_down)
                 elif item['key'] == 'reset':
                     settings_store.reset_settings()
                     import machine

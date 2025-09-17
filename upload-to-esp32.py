@@ -43,7 +43,7 @@ FILE_PATTERNS: List[str] = [
     "custom_code/custom_code_*.py",
     "lib/**/*.py",
     "first_boot.py",
-    "web_setup.py",
+    "web_server.py",
     "www/**/*.html",
     "www/**/*.css",
     "www/**/*.js",
