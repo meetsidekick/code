@@ -205,3 +205,12 @@ def start_web_server(oled, upside_down):
     finally:
         # This is important to allow the event loop to be reused.
         asyncio.new_event_loop()
+        from machine import reset
+        from oled_functions import update_oled
+        from time import sleep_ms
+
+        oled.fill(0)
+        update_oled(oled, "text", "Saving Settings...", upside_down, line=2)
+        oled.show()
+        sleep_ms(1000) # Give time to display message and save settings
+        reset()
