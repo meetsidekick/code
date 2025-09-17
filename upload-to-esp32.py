@@ -40,8 +40,14 @@ FILE_PATTERNS: List[str] = [
     "settings_store.py",
     "default_core.json",
     "custom_core.json",
-    "custom_code_*.py",
+    "custom_code/custom_code_*.py",
     "lib/**/*.py",
+    "first_boot.py",
+    "web_server.py",
+    "www/**/*.html",
+    "www/**/*.css",
+    "www/**/*.js",
+    "web/**/LICENSE-*"
     "*.bmp",
 ]
 
@@ -155,34 +161,57 @@ def _pick_device() -> str:
     """Interactive selection with optional heuristic default.
 
     If a preferred device is found, ENTER selects it. Otherwise user must
-    explicitly choose (no default).
+    explicitly choose (no default). '0' rescans.
     """
-    devices = _iter_pyserial_ports()
-    if not devices:
-        sys.exit("No serial devices found.")
-    default_idx = _preferred_device_index(devices)
-    if default_idx is not None:
-        print("Select device (ENTER for starred default):")
-    else:
-        print("Select device (no default, enter number):")
-    for i, (dev, desc) in enumerate(devices):
-        marker = "*" if default_idx is not None and i == default_idx else " "
-        print(f"  [{i}] {marker} {dev:25} {desc}")
-    while True:
-        raw = input(
-            (f"Enter number (default {default_idx}): " if default_idx is not None else "Enter number: ")
-        ).strip()
-        if raw == "":
+    while True: # for rescanning
+        devices = _iter_pyserial_ports()
+        default_idx = None
+        if not devices:
+            print("No serial devices found.")
+        else:
+            default_idx = _preferred_device_index(devices)
             if default_idx is not None:
-                return devices[default_idx][0]
+                print("Select device (ENTER for starred default, 0 to rescan):")
             else:
-                print("No default available – please enter a number.")
+                print("Select device (no default, enter number, 0 to rescan):")
+
+            for i, (dev, desc) in enumerate(devices):
+                marker = "*" if default_idx is not None and i == default_idx else " "
+                print(f"  [{i+1}] {marker} {dev:25} {desc}")
+        
+        while True: # for input
+            if not devices:
+                prompt = "Enter 0 to rescan: "
+            else:
+                default_prompt = f" (default {default_idx+1})" if default_idx is not None else ""
+                prompt = f"Enter number{default_prompt}, or 0 to rescan: "
+            
+            raw = input(prompt).strip()
+
+            if raw == '0':
+                break # break inner loop to rescan
+
+            if not devices:
+                print("Invalid selection, try again.")
                 continue
-        try:
-            choice = int(raw)
-            return devices[choice][0]
-        except (ValueError, IndexError):
-            print("Invalid selection, try again.")
+
+            if raw == "":
+                if default_idx is not None:
+                    return devices[default_idx][0]
+                else:
+                    print("No default available – please enter a number.")
+                    continue
+            try:
+                choice = int(raw)
+                if 1 <= choice <= len(devices):
+                    return devices[choice - 1][0]
+                else:
+                    print("Invalid selection, try again.")
+            except (ValueError, IndexError):
+                print("Invalid selection, try again.")
+        
+        # This part is reached if raw == '0'
+        print("\nRescanning...\n")
 
 
 def _run_mpremote(*mpremote_args: str) -> None:

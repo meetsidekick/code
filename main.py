@@ -21,6 +21,14 @@ import oled_functions
 from collections import deque
 import math
 
+import network
+
+# Deactivate AP on boot to ensure clean state
+# ap_if = network.WLAN(network.AP_IF)
+# if ap_if.active():
+#     ap_if.active(False)
+#     print("Deactivated lingering AP on boot.")
+
 # === OLED HELPER FUNCTION ===
 def safe_oled_update(display_type, value=None):
     """Safely update OLED - skip if OLED is not available"""
@@ -31,6 +39,8 @@ def safe_oled_update(display_type, value=None):
             print(f"🖥️ OLED: {display_type} = {value}")
         else:
             print(f"🖥️ OLED: {display_type}")
+
+import settings_store
 
 # === OLED & I2C Initialization ===
 i2c_bus = I2C(0, scl=Pin(5), sda=Pin(4), freq=400_000)  # SCL=5, SDA=4
@@ -46,6 +56,14 @@ except OSError as e:
     print(f"⚠️ OLED initialization failed: {e}")
     print("🔧 Debug mode enabled: Continuing without OLED...")
     oled = None
+
+# === DISPLAY SETTINGS ===
+UPSIDE_DOWN = True  # Set to True to flip the display 180 degrees
+
+# === FIRST BOOT CHECK ===
+if not settings_store._settings.get('setup_completed', False):
+    import first_boot
+    first_boot.run_first_boot(oled, UPSIDE_DOWN)
 
 # === DEVICES/SENSORS ===
 # Initialize ADXL345 with error handling built-in
@@ -126,7 +144,7 @@ while True:
             'oled': oled,
             'mpu': mpu,
             'i2c': i2c_bus, # Add i2c bus to env
-            'open_menu': lambda : open_menu(oled, SET_DEBUG, UPSIDE_DOWN, True, env=None),
+            'open_menu': lambda : open_menu(oled, SET_DEBUG, UPSIDE_DOWN, True, env=env),
         }
         # Read accelerometer data and calculate movement force
         try:

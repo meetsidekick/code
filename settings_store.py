@@ -2,29 +2,30 @@
 # Stores settings in a small JSON file on the device filesystem.
 
 import ujson as json
-import os  # added for file deletion
+import os
+import random
+import binascii
 
 _SETTINGS_FILE = "settings.json"
-import binascii # Added for sidekick_id generation
 
-_SETTINGS_FILE = "settings.json"
 _default_settings = {
+    "setup_completed": False,
+    "user_name": "User",
+    "sidekick_name": "Sidekick",
     "mute": False,
-    "core_type": "Custom",  # Default highlight Custom; fallback to Default if not present
-    "sidekick_id": None, # New default for sidekick_id
+    "core_type": "Custom",
+    "sidekick_id": None,
+    "ap_password": None,
 }
 
 _settings = {}
-
 
 def _save():
     try:
         with open(_SETTINGS_FILE, "w") as f:
             json.dump(_settings, f)
-    except Exception as e:
-        # Silent fail is acceptable in constrained environments
+    except Exception:
         pass
-
 
 def _load():
     global _settings
@@ -34,6 +35,14 @@ def _load():
     except Exception:
         _settings = _default_settings.copy()
         _save()
+
+def get_ap_password():
+    global _settings
+    if "ap_password" not in _settings or not _settings["ap_password"]:
+        letters = 'abcdefghjmnopqrs_tuvwxyzABCDEFGHJLMNPQRSTWXYZ23456789'
+        _settings["ap_password"] = ''.join(random.choice(letters) for _ in range(8))
+        _save()
+    return _settings["ap_password"]
 
 
 def is_muted():

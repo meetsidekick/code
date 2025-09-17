@@ -9,6 +9,9 @@ import oled_functions
 
 PRESERVE_CUSTOM_CODE = {'custom_code_Dice.py', 'custom_code_ButtonClick.py', 'custom_code_Pomodoro.py', 'custom_code_Stopwatch.py', 'custom_code_WinBLE-RickRoll.py', 'custom_code_DeviceTemp.py', 'custom_code_WifiScan.py', 'custom_code_BLEStageControl.py', 'custom_code_RhythmGame.py', 'custom_code_FlappyGame.py', 'custom_code_DinoGame.py', 'custom_code_SnakeGame.py', 'custom_code_Breakout.py'}  # Files never deleted by wipe
 
+def get_preserved_files():
+    return PRESERVE_CUSTOM_CODE
+
 # Helper to detect custom core availability
 def _custom_core_available():
     try:
@@ -221,7 +224,7 @@ def _render_menu(oled, items, idx, debug=False, upside_down=False):
             for line in reversed(lines):
                 _text(oled, line, 0, base_y, True)
                 base_y -= 10
-            _text(oled, "Menu", 0, 0, True)
+            _text(oled, "Settings", 0, 0, True)
             if up_indicator:
                 _text(oled, "^", 120, 0, True)
             if down_indicator:
@@ -241,15 +244,23 @@ def _render_menu(oled, items, idx, debug=False, upside_down=False):
     except Exception:
         pass
 
-def _display_sidekick_id(oled, upside_down, ok_button):
-    sidekick_id = settings_store.get_sidekick_id()
+def _display_ids(oled, upside_down, ok_button):
+    user_name = settings_store._settings.get('user_name', 'User')
+    sidekick_name = settings_store._settings.get('sidekick_name', 'Sidekick')
+    sidekick_id = settings_store._settings.get('sidekick_id', 'Sidekick')
+
     if oled:
         oled.fill(0)
-        _text(oled, "Sidekick ID:", 0, 0, upside_down)
-        _text(oled, str(sidekick_id), 0, 20, upside_down)
-        _text(oled, "Press OK to exit", 0, 40, upside_down)
+        _text(oled, "User:", 0, 0, upside_down)
+        _text(oled, user_name, 0, 12, upside_down)
+        _text(oled, "Sidekick:", 0, 24, upside_down)
+        _text(oled, sidekick_name, 0, 36, upside_down)
+        _text(oled, f"Sidekick ID:{sidekick_id}", 0, 44, upside_down)
+        _text(oled, "Press OK", 0, 54, upside_down)
         oled.show()
     else:
+        print(f"User: {user_name}")
+        print(f"Sidekick: {sidekick_name}")
         print(f"Sidekick ID: {sidekick_id}")
         print("Press OK to exit")
 
@@ -269,9 +280,10 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
     base_items = [
         {"name": f"Mute", "key": "mute", "type": "toggle"},
         {"name": f"Core: {core_label}", "key": "core", "type": "action"},
-        {"name": "See Sidekick ID", "key": "sidekick_id", "type": "action"},
+        {"name": "See IDs", "key": "sidekick_id", "type": "action"},
         {"name": "Run Custom Apps", "key": "exec", "type": "action"},
         {"name": "Wipe Extra Apps", "key": "wipe_custom", "type": "action"},
+        {"name": "Start Web Server", "key": "start_web_server", "type": "action"},
         {"name": "Reset Settings", "key": "reset", "type": "action"},
     ]
     if called_from_main:
@@ -313,15 +325,20 @@ def open_menu(oled=None, debug_mode=False, upside_down=False, called_from_main=T
                         settings_store.toggle_core_type()
                         oled_functions.reload_core()
                 elif item['key'] == 'sidekick_id':
-                    _display_sidekick_id(oled, upside_down, env.get('ok_button'))
+                    _display_ids(oled, upside_down, env.get('ok_button'))
                 elif item['key'] == 'exec':
                     result = _execute_code_menu(oled, debug_mode, upside_down, env)
                     if result == 'home':
                         return 'exit'
                 elif item['key'] == 'wipe_custom':
                     _wipe_custom_code()
+                elif item['key'] == 'start_web_server':
+                    import web_server
+                    web_server.start_web_server(oled, upside_down)
                 elif item['key'] == 'reset':
                     settings_store.reset_settings()
+                    import machine
+                    machine.reset()
                 elif item['key'] in ('exit','back'):
                     while code_ok_pin.value()==0:
                         sleep_ms(15)
@@ -336,6 +353,13 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
     _ensure_example()
     all_scripts = _list_custom_code()
     
+    try:
+        s = os.statvfs('/')
+        free_kb = (s[0] * s[3]) // 1024
+        storage_str = f'{free_kb}KB'
+    except Exception:
+        storage_str = ''
+
     deletable_scripts = [s for s in all_scripts if s not in PRESERVE_CUSTOM_CODE]
     preserved_scripts = [s for s in all_scripts if s in PRESERVE_CUSTOM_CODE]
     
@@ -352,7 +376,11 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
         try:
             if oled:
                 oled.fill(0)
-                _text(oled, 'Code Loader', 0, 0, upside_down)
+                _text(oled, 'Apps', 0, 0, upside_down)
+                if storage_str:
+                    storage_x = 128 - len(storage_str) * 8
+                    _text(oled, storage_str, storage_x, 0, upside_down)
+
                 for i, entry in enumerate(view):
                     global_index = start + i
                     marker = '>' if global_index == idx else ' '
@@ -394,20 +422,18 @@ def _execute_code_menu(oled, debug_mode, upside_down, env):
                     while code_ok_pin.value()==0: sleep_ms(15)
                     _reinit_buttons()
                     return 'home'
-                from time import sleep_ms as _slp
                 try:
-                    env_full = {
+                    env_full = env.copy() if env else {}
+                    env_full.update({
                         'oled': env.get('oled') if env else oled,
                         'mpu': env.get('mpu') if env else None,
                         'i2c': env.get('i2c') if env else None, # Pass i2c bus
-                        'open_menu': (lambda : open_menu(oled, debug_mode, upside_down, True, env)),
                         'menu_button': code_debug_pin,
                         'ok_button': code_ok_pin,
                         'settings': settings_store,
-                        'sleep_ms': _slp,
                         'Pin': Pin,
                         'upside_down': upside_down,
-                    }
+                    })
                 except Exception:
                     env_full = {'oled': oled, 'menu_button': code_debug_pin, 'ok_button': code_ok_pin, 'upside_down': upside_down}
                 _run_script(sel, env_full)

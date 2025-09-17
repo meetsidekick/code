@@ -115,6 +115,7 @@ This allows the user to:
 - Mute/Unmute
 - Switch Personality Cores
 - Execute User Code
+- Enter Dashboard Mode(Starts web server, first seen on first boot and when called)
 - Wipe Stuff(User Code, Settings, etc)
 
 <!-- Eventually will be able to launch user's custom code! Update: done!-->
@@ -127,12 +128,12 @@ With this, any user can place files called `custom_code_CodeTitle.py`, where the
 
 ## Builtin
 ### Tools
-- BLEStageControl
+<!-- - BLEStageControl
     - Bluetooth Presentation clicker. Needs to pair every time.
 - WinBLERickroll
-    - Same idea as above but rickrolls a windows user.
+    - Same idea as above but rickrolls a windows user. -->
 - DeviceTemp
-    - Demo program to output the builtin temp sensor on the chip.
+    - Demo program to output the builtin temp sensor on the chip. NOT ACCURATE!
 - Pomodoro Timer
     - A simple pomodoro timer to keep breaks.
 - Stopwatch
@@ -170,7 +171,7 @@ GND -> Buzzer Terminal
 > [!WARNING]
 > Touch Pin is disabled for now! This needs more testing and work...
 Pin assignment for ESP32 and Touch Pin(For registering hold data):\
-GND --(Resistor with 220k to 560k Ohm)--> Pin A3 -> Metal Contact
+GND --(Resistor with 10kOhm)--> Pin A3 -> Metal Contact
 
 > [!TIP]
 > (You can change touch pin in file [pin_values.py line 4](pin_values.py#L4)) 
