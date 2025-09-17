@@ -8,12 +8,15 @@ import sys
 import io
 
 import settings_store
-from machine import Pin
+from machine import Pin, reset
 from pin_values import code_debug_pin_value
 from menu import get_preserved_files
+from oled_functions import update_oled
 
 # --- Globals --- #
 _app_runner = None
+_oled = None
+_upside_down = False
 
 class AppRunner:
     def __init__(self, env):
@@ -81,7 +84,8 @@ async def handle_request(reader, writer):
             with open('sidekick-setup.html', 'rb') as f:
                 while True:
                     chunk = f.read(512)
-                    if not chunk: break
+                    if not chunk:
+                        break
                     await writer.awrite(chunk)
         elif path == '/api/apps' and method == 'GET':
             preserved = get_preserved_files()
@@ -121,6 +125,7 @@ async def handle_request(reader, writer):
 
             await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n')
             await writer.awrite(json.dumps({'status': 'success'}).encode())
+            finish()
         elif path.startswith('/api/app/'):
             filename = path.split('/')[-1]
             if method == 'GET':
@@ -146,7 +151,6 @@ async def handle_request(reader, writer):
             await writer.awrite(b'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n' + _app_runner.get_logs().encode())
         elif path == '/api/reset' and method == 'POST':
             settings_store.reset_settings()
-            from machine import reset
             reset()
             await writer.awrite(b'HTTP/1.1 200 OK\r\n\r\n')
         else:
@@ -157,7 +161,10 @@ async def handle_request(reader, writer):
         await writer.aclose()
 
 async def main(oled, upside_down):
-    global _app_runner
+    global _app_runner, _oled, _upside_down
+    _oled = oled
+    _upside_down = upside_down
+
     env = {
         'oled': oled,
         'upside_down': upside_down,
@@ -176,7 +183,6 @@ async def main(oled, upside_down):
     ap.config(essid=ssid, password=password, authmode=network.AUTH_WPA_WPA2_PSK)
     while not ap.active(): time.sleep(0.1)
 
-    from oled_functions import update_oled
     oled.fill(0)
     update_oled(oled, "text", "Web Server Mode", upside_down, line=1)
     update_oled(oled, "text", f"AP:{ssid}", upside_down, line=3)
@@ -196,6 +202,15 @@ async def main(oled, upside_down):
     await server.wait_closed()
     ap.active(False)
 
+def finish():
+    global _oled, _upside_down
+    _oled.fill(0)
+    update_oled(_oled, "text", "Setup Complete!", _upside_down, line=2)
+    update_oled(_oled, "text", "Rebooting...", _upside_down, line=3)
+    _oled.show()
+    time.sleep(2) # Give time to display message
+    reset()
+
 def start_web_server(oled, upside_down):
     try:
         loop = asyncio.get_event_loop()
@@ -205,6 +220,7 @@ def start_web_server(oled, upside_down):
     finally:
         # This is important to allow the event loop to be reused.
         asyncio.new_event_loop()
+        # Add the hack here
         from machine import reset
         from oled_functions import update_oled
         from time import sleep_ms
